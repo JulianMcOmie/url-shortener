@@ -253,7 +253,11 @@ re-create the database and let that deployment complete uninterrupted.
 
 In the order I would do them:
 
-1. Auth on create and delete. Today anyone can delete any link; a per-link
+1. A short custom domain. Every short link is `BASE_URL` plus the code, and today
+   `BASE_URL` is the long App Platform hostname. Pointing a domain such as
+   `hkg.to` at the app and setting `BASE_URL` to it makes the links short with
+   no code change.
+2. Auth on create and delete. Today anyone can delete any link; a per-link
    secret returned at creation would be the smallest fix.
-2. Rate limiting on create, since it is the only unauthenticated write.
-3. Metrics endpoint (request counts and latency histograms) for alerting.
+3. Rate limiting on create, since it is the only unauthenticated write.
+4. Metrics endpoint (request counts and latency histograms) for alerting.
