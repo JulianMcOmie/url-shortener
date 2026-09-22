@@ -262,7 +262,10 @@ In the order I would do them:
    `BASE_URL` is the long App Platform hostname. Pointing a domain such as
    `hkg.to` at the app and setting `BASE_URL` to it makes the links short with
    no code change.
-2. Auth on create and delete. Today anyone can delete any link; a per-link
-   secret returned at creation would be the smallest fix.
+2. Auth on create and delete, then a list endpoint. Anyone can delete any link
+   today, and a "my links" endpoint cannot exist until there is a "me": without
+   ownership it would list everyone's destinations. Smallest fix is a per-link
+   secret returned at creation; the real fix is API keys, which then make
+   listing safe. The UI's per-browser history is the stand-in until then.
 3. Rate limiting on create, since it is the only unauthenticated write.
 4. Metrics endpoint (request counts and latency histograms) for alerting.
