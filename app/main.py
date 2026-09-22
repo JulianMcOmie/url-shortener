@@ -50,7 +50,9 @@ def healthz() -> dict:
 @app.post("/v1/links", status_code=201, response_model=LinkResponse)
 def create_link(body: CreateLinkRequest, request: Request) -> LinkResponse:
     state = request.app.state
-    link = links.create_link(state.storage, state.settings.base_url, body.long_url, body.alias)
+    link = links.create_link(
+        state.storage, state.settings.base_url, body.long_url, body.alias, body.expires_at_utc()
+    )
     return links.to_response(link, state.settings.base_url)
 
 

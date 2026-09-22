@@ -15,7 +15,7 @@ Live: https://url-shortener-pta8k.ondigitalocean.app/healthz
 | POST   | /v1/links         | Create a link; optional custom alias     | 201     | 422 invalid, 409 alias taken |
 | GET    | /v1/links/{code}  | Metadata for one link                    | 200     | 404 unknown code |
 | DELETE | /v1/links/{code}  | Retire a link; its code becomes free     | 204     | 404 unknown code |
-| GET    | /{code}           | Redirect to the long URL, count the hit  | 307     | 404 unknown code |
+| GET    | /{code}           | Redirect to the long URL, count the hit  | 307     | 404 unknown code, 410 expired |
 
 Interactive docs are served at `/docs`.
 
@@ -35,10 +35,15 @@ Every error is JSON with one message that names the offending field:
       "short_url": "https://url-shortener-pta8k.ondigitalocean.app/mHlophd",
       "custom": false,
       "hit_count": 0,
-      "created_at": "2026-09-22T19:19:59Z"
+      "created_at": "2026-09-22T19:19:59Z",
+      "expires_at": null
     }
 
-Add `"alias": "launch"` to the body to choose the code yourself.
+Optional fields in the body:
+
+- `"alias": "launch"` to choose the code yourself.
+- `"expires_at": "2026-12-31T23:59:59Z"` to make the link stop working after that time.
+  Any ISO 8601 timestamp; an offset is honoured and a naive value is taken as UTC.
 
 ### Follow a link
 
@@ -69,6 +74,9 @@ Same shape as the create response, with `hit_count` reflecting redirects served.
 - `alias`: optional, 3 to 32 characters from `[A-Za-z0-9_-]`, case-sensitive, stored as given.
   Reserved words (`healthz`, `v1`, `docs`, `redoc`, `openapi.json`) are rejected.
 - Alias already in use returns 409, a conflict rather than a validation failure.
+- `expires_at`: optional, must parse as ISO 8601 and be in the future. An expired
+  link answers 410 Gone on redirect and does not count a hit; its metadata stays
+  readable so the owner can see when it lapsed.
 - The same `long_url` submitted twice without an alias gets two different codes,
   so two callers never share a hit count.
 
@@ -144,6 +152,10 @@ returns 404 from the other. The production answer is managed Postgres, which is 
 change inside that one file. Hit counting is a synchronous row update; at scale that
 becomes the write bottleneck and would move to an event stream with async aggregation.
 
+**410 for expired, 404 for unknown.** A client following an expired link learns it
+existed and is gone for good, which a 404 would not say. The hit-count update and the
+expiry check are one SQL statement, so an expired link is never counted.
+
 **Routes hold no logic.** `app/main.py` maps HTTP to calls in `app/links.py`. Validation
 is in the schemas, storage is in storage. Each layer can be tested and swapped alone.
 
@@ -159,7 +171,7 @@ Then open http://localhost:8080/docs.
 
     pytest -q
 
-35 tests, run with FastAPI's `TestClient` against the real routes. Each test gets a
+43 tests, run with FastAPI's `TestClient` against the real routes. Each test gets a
 fresh SQLite file, so tests never depend on each other. They cover every endpoint's
 success path and every validation rule above.
 
@@ -202,7 +214,7 @@ After that, every push to `main` redeploys.
     app/models.py      request and response schemas, URL validation
     app/codes.py       code generation, alias rules, reserved list
     app/links.py       create, get, follow, delete; the only caller of storage
-    app/storage.py     Storage class over SQLite
+    app/storage.py     Storage class over SQLite, with a tiny forward migration
     app/config.py      settings from environment variables
     app/observability.py  JSON log formatter and request logging middleware
     tests/             pytest, one file per feature
@@ -215,9 +227,8 @@ After that, every push to `main` redeploys.
 
 In the order I would do them:
 
-1. `expires_at` on create, checked on redirect.
-2. Managed Postgres, then a second instance.
-3. Auth on create and delete. Today anyone can delete any link; a per-link
+1. Managed Postgres, then a second instance.
+2. Auth on create and delete. Today anyone can delete any link; a per-link
    secret returned at creation would be the smallest fix.
-4. Rate limiting on create, since it is the only unauthenticated write.
-5. Metrics endpoint (request counts and latency histograms) for alerting.
+3. Rate limiting on create, since it is the only unauthenticated write.
+4. Metrics endpoint (request counts and latency histograms) for alerting.

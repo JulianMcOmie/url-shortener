@@ -13,6 +13,16 @@ class Link:
     custom: bool
     hit_count: int
     created_at: str
+    expires_at: str | None = None
+
+
+def utc_now() -> str:
+    """Current time in the one format every timestamp in the table uses."""
+    return format_utc(datetime.now(timezone.utc))
+
+
+def format_utc(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 class CodeTaken(Exception):
@@ -33,33 +43,50 @@ class Storage:
                     long_url   TEXT NOT NULL,
                     custom     INTEGER NOT NULL DEFAULT 0,
                     hit_count  INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT
                 )
                 """
             )
+            self._migrate()
 
-    def insert(self, code: str, long_url: str, custom: bool) -> Link:
-        created_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    def _migrate(self) -> None:
+        """Bring an older database file up to the current schema."""
+        columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(links)")}
+        if "expires_at" not in columns:
+            self._conn.execute("ALTER TABLE links ADD COLUMN expires_at TEXT")
+
+    def insert(self, code: str, long_url: str, custom: bool, expires_at: str | None = None) -> Link:
+        created_at = utc_now()
         with self._lock:
             try:
                 with self._conn:
                     self._conn.execute(
-                        "INSERT INTO links (code, long_url, custom, hit_count, created_at) VALUES (?, ?, ?, 0, ?)",
-                        (code, long_url, int(custom), created_at),
+                        "INSERT INTO links (code, long_url, custom, hit_count, created_at, expires_at)"
+                        " VALUES (?, ?, ?, 0, ?, ?)",
+                        (code, long_url, int(custom), created_at, expires_at),
                     )
             except sqlite3.IntegrityError as e:
                 raise CodeTaken(code) from e
-        return Link(code=code, long_url=long_url, custom=custom, hit_count=0, created_at=created_at)
+        return Link(code=code, long_url=long_url, custom=custom, hit_count=0,
+                    created_at=created_at, expires_at=expires_at)
 
     def get(self, code: str) -> Link | None:
         row = self._conn.execute("SELECT * FROM links WHERE code = ?", (code,)).fetchone()
         return self._to_link(row) if row else None
 
-    def record_hit(self, code: str) -> Link | None:
-        """Increment the hit count and return the link, or None if the code is unknown."""
+    def record_hit(self, code: str, now: str) -> Link | None:
+        """Increment the hit count and return the link.
+
+        Returns None if the code is unknown or the link expired before `now`, so an
+        expired link never counts a hit. Timestamps compare as strings because they
+        are all stored in the same UTC format.
+        """
         with self._lock, self._conn:
             row = self._conn.execute(
-                "UPDATE links SET hit_count = hit_count + 1 WHERE code = ? RETURNING *", (code,)
+                "UPDATE links SET hit_count = hit_count + 1"
+                " WHERE code = ? AND (expires_at IS NULL OR expires_at > ?) RETURNING *",
+                (code, now),
             ).fetchone()
         return self._to_link(row) if row else None
 
@@ -80,4 +107,5 @@ class Storage:
             custom=bool(row["custom"]),
             hit_count=row["hit_count"],
             created_at=row["created_at"],
+            expires_at=row["expires_at"],
         )
