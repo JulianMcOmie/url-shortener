@@ -1,0 +1,22 @@
+# DigitalOcean App Platform spec.
+# First deploy:  doctl apps create --spec .do/app.yaml
+# Later changes: doctl apps update <app-id> --spec .do/app.yaml
+name: url-shortener
+region: nyc
+services:
+  - name: web
+    github:
+      repo: JulianMcOmie/url-shortener
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    health_check:
+      http_path: /healthz
+    envs:
+      - key: BASE_URL
+        value: ${APP_URL}
+      - key: DATABASE_PATH
+        value: /tmp/links.db
