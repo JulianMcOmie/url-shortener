@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Redirects</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1b1f; --muted:#66666f; --line:#e2e2e8; --node:#f6f7fa; --accent:#0069ff; --ai:#b54708; --aibg:#fff4e5; --you:#1a7f37; --youbg:#e8f5ec; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#131316; --fg:#ececf1; --muted:#a0a0ab; --line:#2a2a31; --node:#1c1c22; --accent:#6ea8ff; --ai:#fbbf24; --aibg:#2e2412; --you:#4ade80; --youbg:#14291c; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 16px 80px; background:var(--bg); color:var(--fg); font:15.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 24px; max-width: 70ch; }
+  h2 { font-size: 20px; margin: 44px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .item { padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; }
+  .item h3 { margin: 0 0 10px; font-size: 16.5px; }
+  .item h3 small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 700px) { .pair { grid-template-columns: 1fr; } }
+  .box { border-radius: 8px; padding: 9px 12px; font-size: 14.5px; }
+  .box b { display: block; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 3px; }
+  .ai { background: var(--aibg); } .ai b { color: var(--ai); }
+  .you { background: var(--youbg); } .you b { color: var(--you); }
+  .then { margin: 10px 0 0; font-size: 14.5px; }
+  .then b { color: var(--muted); font-weight: 600; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: var(--node); padding: 1px 5px; border-radius: 4px; }
+  .pattern { background: var(--node); border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
+  .pattern ul { margin: 6px 0 0; padding-left: 20px; } .pattern li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Where the AI went one way and you went another</h1>
+<p class="lead">A log of the redirects during the build, in order. Each one says what the assistant did or proposed, what you wanted instead, and what changed as a result. Kept because the pattern is more useful than any single entry.</p>
+
+<h2>Before the build</h2>
+
+<div class="item">
+  <h3>Diagram timing <small>planning</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Draw the architecture diagram at step 6, after the code, so it matches what was built.</div>
+    <div class="box you"><b>You</b> Asked whether it should be first instead. There was an argument for both.</div>
+  </div>
+  <p class="then"><b>Result:</b> both. A ten-minute sketch first, as the plan in picture form, then corrected at the end to match the code. The spec was written that way.</p>
+</div>
+
+<div class="item">
+  <h3>Commit attribution <small>first push</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Would have added a "Co-Authored-By: Claude" line to every commit, per its default.</div>
+    <div class="box you"><b>You</b> Short messages, no AI co-author line.</div>
+  </div>
+  <p class="then"><b>Result:</b> every commit is a plain one-line message. Saved as a standing preference.</p>
+</div>
+
+<h2>During the build</h2>
+
+<div class="item">
+  <h3>Checking commits against the brief <small>after the README push</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Was committing feature by feature against the spec it had written.</div>
+    <div class="box you"><b>You</b> Every commit should be checked against the two requirement documents, not just the spec.</div>
+  </div>
+  <p class="then"><b>Result:</b> a requirements pass before each push from then on, and eventually the checklist page.</p>
+</div>
+
+<div class="item">
+  <h3>Pushing during a deployment <small>the database incident</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Pushed a health-check commit about a minute after you attached the database. That push cancelled the deployment that would have granted the database user its permissions. Every deploy after that failed at startup.</div>
+    <div class="box you"><b>You</b> "Don't do anything, just talk to me." Then, later, caught a second push during a deploy and asked whether it was the same mistake.</div>
+  </div>
+  <p class="then"><b>Result:</b> no pushes without your say-so while deployments were in flight. The cause and fix went into the README. The second push was harmless, and the AI explained why, but it should have waited anyway.</p>
+</div>
+
+<div class="item">
+  <h3>What the overview document should be <small>three attempts</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> First version: a catalogue of every function with its signature and file. Second version: diagrams with signatures as labels, still dense.</div>
+    <div class="box you"><b>You</b> "Diagrams and visuals with short high-level explanations." Then: "It doesn't really explain anything. Simple, no jargon, not like explaining to a PhD."</div>
+  </div>
+  <p class="then"><b>Result:</b> the third version opens with a coat-check analogy, tells two stories end to end, and uses one line of code per step as a label. That is the one in the repo. The AI's instinct was to be complete; yours was to be understood.</p>
+</div>
+
+<div class="item">
+  <h3>Stop building or keep building <small>with about fifty minutes left</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> "Stop adding features. Read the code, rehearse, sign out."</div>
+    <div class="box you"><b>You</b> Wrote a note proposing a frontend, extremely minimal, in DigitalOcean's style.</div>
+  </div>
+  <p class="then"><b>Result:</b> the AI reconsidered: a static page is additive and cannot break the API, unlike the metrics and rate-limit ideas it had argued against. Built with a timebox. It became the demo centrepiece.</p>
+</div>
+
+<div class="item">
+  <h3>Strict input on the page <small>first UI feedback</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Used the browser's built-in URL field, which rejects <code>youtube.com</code> without a scheme.</div>
+    <div class="box you"><b>You</b> "When I put in youtube.com it says please put in a URL. Is that a problem?"</div>
+  </div>
+  <p class="then"><b>Result:</b> the page adds <code>https://</code> when it is missing. The API stays strict; the page is the forgiving layer.</p>
+</div>
+
+<div class="item">
+  <h3>Labels on the result card <small>UI feedback</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Showed "custom name" or "generated name" next to the Copy button.</div>
+    <div class="box you"><b>You</b> Confusing. Remove both.</div>
+  </div>
+  <p class="then"><b>Result:</b> removed. The card shows the short link, the destination, and Copy.</p>
+</div>
+
+<div class="item">
+  <h3>Past links on the page <small>UI feature</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Had left "past links" for a future list endpoint behind auth.</div>
+    <div class="box you"><b>You</b> Wanted to see and delete past links in the UI now.</div>
+  </div>
+  <p class="then"><b>Result:</b> a per-browser history with live click counts and a Delete button, using only the existing API. The auth-backed version stays in next steps.</p>
+</div>
+
+<div class="item">
+  <h3>Tasteful interaction <small>UI feedback</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Shipped the page with a single hover colour and nothing else.</div>
+    <div class="box you"><b>You</b> Hover states, press feedback, visual responses.</div>
+  </div>
+  <p class="then"><b>Result:</b> hover lift and shadow, press-down, focus rings, a green flash on Copy, a fade-in on the result card, row highlight in the history list.</p>
+</div>
+
+<div class="item">
+  <h3>Talking points format <small>documents</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Wrote the sheet as Markdown.</div>
+    <div class="box you"><b>You</b> Wanted HTML to open in a browser.</div>
+  </div>
+  <p class="then"><b>Result:</b> converted and the Markdown removed. Every document since has been HTML.</p>
+</div>
+
+<div class="item">
+  <h3>Gating deploys on tests <small>pipeline</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Had left tests and deploys running in parallel, and written it up as an honest gap rather than fixing it.</div>
+    <div class="box you"><b>You</b> "Seems like a win." Created the token, added the secret, turned off deploy-on-push.</div>
+  </div>
+  <p class="then"><b>Result:</b> the deploy job now runs only after both test jobs pass. Verified twice end to end. The gap in the Q&amp;A page was rewritten as closed.</p>
+</div>
+
+<div class="item">
+  <h3>Unit tests <small>testing</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Had written 47 integration tests and one unit test, and called the brief's "unit or integration" satisfied.</div>
+    <div class="box you"><b>You</b> "Should I write more unit tests? It is one of the givens."</div>
+  </div>
+  <p class="then"><b>Result:</b> a unit test file for the pure functions: code generation, alias rules, timestamp formatting, the log formatter. 61 tests. The README now says which kind does what.</p>
+</div>
+
+<div class="item">
+  <h3>Comments in the code <small>the last pass</small></h3>
+  <div class="pair">
+    <div class="box ai"><b>AI</b> Wrote comments and docstrings as it went, in its own register: "collapse Pydantic's error list", "structured JSON logging", "the factory that picks a backend", "liveness".</div>
+    <div class="box you"><b>You</b> Delete the unnecessary ones. Make the necessary ones simpler and easier to digest. Cut jargon where it can be cut, keep it where cutting it would confuse.</div>
+  </div>
+  <p class="then"><b>Result:</b> every comment and docstring in the app, the tests, the workflow, the app spec, the Dockerfile and the page was reread. One was deleted (it repeated the test's name). The rest were rewritten in plain words: "Is this container alive, and which database is it using", "Add columns that older database files are missing", "Last on purpose: /{code} would otherwise capture /healthz too". Words like Pydantic, UTC, stdout and 410 stayed, because they name the actual thing and a softer word would be wrong.</p>
+</div>
+
+<h2>The other direction</h2>
+
+<div class="item">
+  <h3>The pasted token <small>early</small></h3>
+  <div class="pair">
+    <div class="box you"><b>You</b> Pasted a GitHub token into the chat so the AI could push.</div>
+    <div class="box ai"><b>AI</b> Declined to use it, said to treat it as exposed and revoke it, and set up an SSH key instead so no secret ever had to pass through the conversation.</div>
+  </div>
+  <p class="then"><b>Result:</b> the same rule held for the DigitalOcean token later: it went straight from the console into GitHub's secret store.</p>
+</div>
+
+<div class="pattern">
+  <b>The pattern, in one paragraph.</b> The AI defaulted to completeness, caution, and its own vocabulary. You redirected toward being understood, toward the customer's experience, and toward closing gaps rather than documenting them. Nearly every redirect made the result simpler or more honest. The one time the AI held its ground, it was about a secret.
+  <ul>
+    <li>When it wrote for itself, you asked it to write for a reader.</li>
+    <li>When it protected the schedule, you weighed the demo.</li>
+    <li>When it named a gap, you asked whether it could just be fixed.</li>
+    <li>When it acted during a fragile moment, you asked it to stop and talk.</li>
+  </ul>
+</div>
+
+</main>
+</body>
+</html>
