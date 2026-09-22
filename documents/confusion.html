@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Questions and Answers</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1b1f; --muted:#66666f; --line:#e2e2e8; --node:#f6f7fa; --accent:#0069ff; --warn:#b54708; --warnbg:#fff4e5; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#131316; --fg:#ececf1; --muted:#a0a0ab; --line:#2a2a31; --node:#1c1c22; --accent:#6ea8ff; --warn:#fbbf24; --warnbg:#2e2412; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 16px 80px; background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 24px; }
+  .q { margin: 36px 0 0; padding-top: 24px; border-top: 1px solid var(--line); }
+  .q h2 { font-size: 18px; margin: 0 0 10px; }
+  .q h2::before { content: "Q"; display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent); background: var(--node); padding: 2px 7px; border-radius: 4px; margin-right: 10px; vertical-align: middle; }
+  p { margin: 8px 0; } ul { padding-left: 22px; } li { margin: 4px 0; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--node); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--node); padding: 10px 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+  .honest { background: var(--warnbg); border-left: 3px solid var(--warn); padding: 8px 12px; margin: 10px 0; }
+  .say { color: var(--muted); font-style: italic; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Your questions, answered</h1>
+
+<!-- ============================================================ -->
+<div class="q">
+<h2>In the README: what does "scheme http or https" mean? Non-empty host? Not fetched to check it resolves?</h2>
+<p>Take a web address apart:</p>
+<pre>https://www.digitalocean.com/products/app-platform
+^^^^^   ^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^
+scheme  host                 path</pre>
+<ul>
+  <li><b>Scheme</b> is the part before <code>://</code>. It says how to talk to the address. We only accept <code>http</code> and <code>https</code>, so things like <code>ftp://</code>, <code>mailto:</code> or <code>javascript:</code> are refused. The last one matters: a shortener that redirects to <code>javascript:</code> would run code in the visitor's browser.</li>
+  <li><b>Host</b> is the domain name, <code>www.digitalocean.com</code>. "Non-empty host" means <code>https://</code> on its own, with nothing after it, is refused.</li>
+  <li><b>Not fetched to check it resolves</b> means: we do not visit the address to see whether it actually exists. We only check that it is shaped like an address. Two reasons. Visiting it would make every create request slow and dependent on some other website being up. And it would let anyone make our server send requests to any address they choose, including addresses inside our own network. That trick has a name, SSRF, and it is a classic security hole.</li>
+</ul>
+<p class="say">Short version for the review: "I validate the shape of the URL, not whether it works. Checking whether it works is slow and is a security risk."</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="q">
+<h2>What is a browser visitor? Someone trying to access the shortened link from their browser?</h2>
+<p>Yes, exactly. The diagram has two kinds of client because they behave differently:</p>
+<ul>
+  <li><b>API client</b>: a developer, a script, or our own web page, sending JSON to create, read, or delete links. They understand JSON replies.</li>
+  <li><b>Visitor</b>: anyone who clicks a short link. They are a person in a browser. They never send JSON and never see any. They type or click <code>…/launch</code>, the browser gets told "go over there", and it goes. The visitor does not know our service exists.</li>
+</ul>
+<p>The distinction matters for the design: the redirect route must be public and must answer with a redirect that browsers follow automatically, while the API routes answer with JSON for programs.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="q">
+<h2>Does the DigitalOcean deployment depend on GitHub Actions passing the tests? Are there unit tests and integration tests? Should there be? Do deployments depend on them passing?</h2>
+<p><b>Does the deploy wait for the tests? No.</b> Today they run side by side. A push to <code>main</code> tells GitHub Actions to run the tests, and separately tells App Platform to build and deploy. Neither waits for the other. If a test failed, the deploy would still go out.</p>
+<div class="honest">This is an honest gap and a good one to name before they ask. In a real setup, the deploy should happen only after the tests pass. The way to do that here: turn off App Platform's deploy-on-push, and add a final step to the GitHub Actions workflow that triggers the deploy (with the <code>doctl</code> tool and an API token stored as a secret) only when the test jobs succeed. It is a small change. I did not do it because it needs a DigitalOcean API token wired into GitHub, and the time went to the database instead.</div>
+<p><b>What protects production today?</b> The health check. If the new container does not answer <code>/healthz</code>, App Platform keeps the old one running. That caught every failed deploy today. But it only catches "crashes on startup", not "a test would have failed".</p>
+<p><b>Unit versus integration.</b> Almost all 47 tests are integration tests: they send a real HTTP request through the whole app, from the route down to a real database, and check the reply. Only one is a unit test, the one that builds an old-format SQLite file and checks the storage layer upgrades it. That balance is deliberate. For a service this small, testing through the front door proves the most with the least code. If the link layer grew complicated, I would add unit tests for it on its own.</p>
+<p class="say">Short version: "Tests and deploy run in parallel; the deploy is gated by the health check, not by the tests. Gating on the tests is the next step and it's a small workflow change."</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="q">
+<h2>What is "managed Postgres"? Why is it in the deploy diagram? Is it the same as the dev database? Should it be renamed?</h2>
+<p><b>Postgres</b> is a database program. <b>Managed</b> means DigitalOcean runs it for you: they install it, keep it running, patch it, and hand you an address and a password. You never touch the server it runs on. The alternative is running Postgres yourself on a machine you maintain.</p>
+<p><b>The dev database is managed Postgres.</b> Same thing, smallest size. DigitalOcean sells managed Postgres in tiers. "Dev database" is the cheapest tier, meant for development: one small instance, no backups, no standby copy, and you cannot change permissions yourself (which is the wall we hit today). The production tiers add backups, a standby that takes over if the main one dies, and more capacity.</p>
+<p><b>Why it is in the deploy diagram:</b> the diagram shows what runs where. Containers come and go with every deploy; the database is a separate thing that persists across them, and every container connects to it. Leaving it out would hide the most important piece of the "why does data survive a redeploy" story.</p>
+<p><b>Rename?</b> Not necessary, but "Managed Postgres (dev tier)" would be more precise. The README already says in the deploy section that it is the dev tier and why.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="q">
+<h2>What does the "307, not 301" thing mean? Is that an error message?</h2>
+<p>Not an error. They are two kinds of "go somewhere else" reply. Every HTTP reply carries a three-digit status number. The 300s all mean "what you want is at a different address":</p>
+<ul>
+  <li><b>301</b> means "moved permanently, remember this". A browser that sees a 301 caches it. Next time the user clicks the same short link, the browser skips us entirely and goes straight to the destination. We never see that click.</li>
+  <li><b>307</b> means "go there for now, ask me again next time". Every click comes through us.</li>
+</ul>
+<p>Since the whole point of the metadata is the click count, we need every click to come through. So 307. The cost is one extra round trip per click, a few milliseconds.</p>
+<p>For contrast, the numbers that are errors: 404 (no such link), 409 (that alias is taken), 410 (that link expired), 422 (your input is wrong). And 2xx means success: 200, 201 created, 204 done with nothing to return.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="q">
+<h2>I kinda get why there are two backend databases, in case Postgres fails. But what happens if it fails? How do they reconcile when Postgres comes back?</h2>
+<div class="honest">That is not what the two backends are for, and it is worth being precise here because a reviewer might probe it. They are <b>not</b> a failover pair. Nothing switches between them and nothing reconciles.</div>
+<p>The two backends exist for two different <i>environments</i>:</p>
+<ul>
+  <li><b>SQLite</b> for your laptop and for the tests. Zero setup, a file appears, tests run in a fifth of a second.</li>
+  <li><b>Postgres</b> for production, where several containers need to share one set of data that survives redeploys.</li>
+</ul>
+<p>A running container uses exactly one of them, chosen once at startup by whether <code>DATABASE_URL</code> is set. It never changes its mind while running.</p>
+<p><b>So what happens if Postgres goes down in production?</b> Requests that need the database fail. The connection pool throws, the request logs a 500 with a traceback, and the visitor gets an error. If a container restarts while Postgres is down, it fails at startup, and App Platform keeps the old container (which will also be erroring, but at least it is up). The service is down until Postgres is back. When Postgres comes back, the pool reconnects on the next request and things resume. There is nothing to reconcile because nothing was written anywhere else in the meantime.</p>
+<p><b>Is that acceptable?</b> For this exercise, yes, and it is the normal answer: the database is the thing you make highly available, not something you fail over to a local file. The production tier of managed Postgres includes a standby copy that takes over automatically. Falling back to SQLite would be worse than failing: two containers would silently write to two different files, and you would have exactly the data-splitting bug from earlier today, plus the mess of merging it later.</p>
+<p class="say">Short version: "SQLite is for dev and tests, Postgres is for production. If Postgres is down, the service is down, and the fix for that is a production database tier with a standby, not a local fallback."</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="q">
+<h2>Where does Pydantic do the validation?</h2>
+<p>In <code>app/models.py</code>, and it happens <i>before</i> the route function runs.</p>
+<p>The route in <code>app/main.py</code> is declared like this:</p>
+<pre>def create_link(body: CreateLinkRequest, request: Request) -> LinkResponse:</pre>
+<p>That type annotation, <code>body: CreateLinkRequest</code>, is the instruction. When a request arrives, FastAPI reads the JSON and tries to build a <code>CreateLinkRequest</code> from it. Pydantic is the library that does the building. In the process it:</p>
+<ol>
+  <li>checks the field types: <code>long_url</code> must be a string, <code>expires_at</code> must parse as a date, missing required fields are an error;</li>
+  <li>checks the built-in constraints, like <code>max_length=2048</code>;</li>
+  <li>runs our custom validators, the functions in <code>models.py</code> marked <code>@field_validator</code>: the URL scheme and host check, the alias rules (which call into <code>codes.py</code>), and the expiry-in-the-future check.</li>
+</ol>
+<p>If any of that fails, Pydantic raises an error, FastAPI catches it, and our handler in <code>main.py</code> turns it into <code>422 {"error": "field: message"}</code>. The route function never runs. If it all passes, the route receives a <code>body</code> object whose fields are already the right types and already checked.</p>
+<p>That is why the route can be three lines: by the time it runs, there is nothing left to check.</p>
+</div>
+
+</main>
+</body>
+</html>
