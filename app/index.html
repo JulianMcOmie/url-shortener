@@ -48,6 +48,16 @@
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .meta { color: var(--gray); font-size: 14px; margin-left: auto; }
   .again { margin-top: 18px; }
+  #history { display: none; margin-top: 40px; }
+  #history h2 { font-size: 14px; font-weight: 600; color: var(--gray); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+  .hist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .hist li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .hist .s { color: var(--blue); text-decoration: none; font-weight: 500; white-space: nowrap; }
+  .hist .s:hover { text-decoration: underline; }
+  .hist .l { color: var(--gray); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .hist .c { color: var(--gray); white-space: nowrap; }
+  .hist .d { background: none; color: var(--gray); padding: 4px 6px; font-weight: 500; font-size: 13px; }
+  .hist .d:hover { background: none; color: var(--red); }
   footer { margin-top: 40px; text-align: center; font-size: 13px; color: var(--gray); }
   footer a { color: var(--gray); }
 </style>
@@ -81,6 +91,11 @@
       </div>
     </div>
     <div class="again"><button type="button" class="link" id="again">Shorten another</button></div>
+  </section>
+
+  <section id="history">
+    <h2>Your links</h2>
+    <ul class="hist" id="hist"></ul>
   </section>
 
   <footer><a href="/docs">API</a></footer>
@@ -123,7 +138,48 @@
     }
   });
 
+  // Links made in this browser, newest first. There is no login, so "yours" means "made here".
+  const KEY = "links";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const save = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch {} };
+
+  function remember(link) {
+    const list = load().filter((l) => l.code !== link.code);
+    list.unshift({ code: link.code, short_url: link.short_url, long_url: link.long_url });
+    save(list.slice(0, 50));
+    render();
+  }
+
+  async function render() {
+    const list = load();
+    $("history").style.display = list.length ? "block" : "none";
+    $("hist").innerHTML = "";
+    for (const l of list) {
+      const li = document.createElement("li");
+      const a = document.createElement("a"); a.className = "s"; a.href = l.short_url; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = l.short_url.replace(/^https?:\/\//, "");
+      const long = document.createElement("span"); long.className = "l"; long.textContent = l.long_url; long.title = l.long_url;
+      const count = document.createElement("span"); count.className = "c"; count.textContent = "…";
+      const del = document.createElement("button"); del.type = "button"; del.className = "d"; del.textContent = "Delete";
+      del.addEventListener("click", async () => {
+        del.disabled = true;
+        const r = await fetch("/v1/links/" + encodeURIComponent(l.code), { method: "DELETE" });
+        if (r.ok || r.status === 404) { save(load().filter((x) => x.code !== l.code)); render(); }
+        else { del.disabled = false; count.textContent = "could not delete"; }
+      });
+      li.append(a, long, count, del);
+      $("hist").appendChild(li);
+      fetch("/v1/links/" + encodeURIComponent(l.code))
+        .then((r) => r.ok ? r.json() : null)
+        .then((m) => { count.textContent = m ? `${m.hit_count} click${m.hit_count === 1 ? "" : "s"}` : "gone"; })
+        .catch(() => { count.textContent = ""; });
+    }
+  }
+
+  render();
+
   function show(link) {
+    remember(link);
     $("shortLink").textContent = link.short_url.replace(/^https?:\/\//, "");
     $("shortLink").href = link.short_url;
     $("longUrl").textContent = "→ " + link.long_url;

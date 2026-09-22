@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walkthrough Talking Points</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1b1f; --muted:#66666f; --line:#e2e2e8; --node:#f6f7fa; --accent:#0069ff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#131316; --fg:#ececf1; --muted:#a0a0ab; --line:#2a2a31; --node:#1c1c22; --accent:#6ea8ff; } }
+  body { margin:0; padding:28px 16px 80px; background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 20px; margin: 40px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  p { margin: 8px 0; } li { margin: 6px 0; } ul, ol { padding-left: 24px; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--node); padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--accent); } hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+  table { border-collapse: collapse; margin: 10px 0; } td { padding: 6px 12px; border-bottom: 1px solid var(--line); }
+  td:first-child { color: var(--muted); }
+</style></head><body><main>
+<h1>Walkthrough talking points</h1>
+<p>45 minutes. Anchor on the two README diagrams. Lead with the outcome, then the why.</p>
+<p>Live: <a href="https://url-shortener-pta8k.ondigitalocean.app/healthz">https://url-shortener-pta8k.ondigitalocean.app/healthz</a></p>
+<p>Repo: <a href="https://github.com/JulianMcOmie/url-shortener">https://github.com/JulianMcOmie/url-shortener</a></p>
+<hr>
+<h2>1. Opening (2 min)</h2>
+<ul>
+<li>"It's a URL shortener: create a short code, redirect on it, read metadata, delete, optional custom alias and expiry. There's a one-page UI at the root for the demo."</li>
+<li>"It's live on App Platform, running two containers against managed Postgres. 43 tests run in CI on every push, against both SQLite and Postgres."</li>
+<li>"I started from a written spec, deployed a health check first, then built one feature at a time. Every commit is one step in that plan."</li>
+<li>Show <code>spec.md</code> for five seconds: the plan existed before the code.</li>
+</ul>
+<h2>2. The request diagram (8 min)</h2>
+<p>Walk the create path top to bottom, then the redirect path.</p>
+<ul>
+<li><b>Routes (<code>app/main.py</code>)</b> hold no logic. Each one is three lines. Two exception handlers give every error the same shape: <code>{"error": "field: message"}</code>.</li>
+<li><b>Validation (<code>app/models.py</code>, <code>app/codes.py</code>)</b> runs before the route is called. URL must be http/https with a host and under 2048 chars. Alias is 3 to 32 chars, restricted charset, case-sensitive, with a reserved list so nobody claims <code>healthz</code>.</li>
+<li><b>Link logic (<code>app/links.py</code>)</b> is the only layer that decides status codes: 422 self-referencing URL, 409 alias taken, 404 unknown, 410 expired.</li>
+<li><b>Storage</b> is one interface with two implementations. Nothing above it knows which is running.</li>
+<li>Redirect path: one SQL statement checks expiry, increments the count, and returns the row. Atomic, so concurrent clicks never lose a count. Expired links are never counted.</li>
+</ul>
+<h2>3. The decisions and why (10 min)</h2>
+<p>Say each as "I chose X over Y because Z."</p>
+<ul>
+<li><b>307 over 301.</b> 301 is cached by browsers, so repeat visits never reach us and hit counts would be wrong. 307 costs one round trip per click, which is the price of having metadata.</li>
+<li><b>Random base62 codes over an encoded counter.</b> 62^7 is 3.5 trillion. No shared counter to coordinate across containers, and codes do not reveal volume. Collisions are handled by retrying the insert; the primary key does the detection.</li>
+<li><b>Same URL twice gets two codes.</b> Two customers shortening the same page should not share analytics. Custom aliases already break one-to-one anyway.</li>
+<li><b>410 for expired, 404 for unknown.</b> A client following an expired link learns it existed and is gone, which is actionable.</li>
+<li><b>Errors name the field.</b> "long_url: must start with http:// or <a href="https://"">https://"</a> is something a person can fix. A bare 422 is not.</li>
+<li><b>Never fetch the target URL to validate it.</b> Slow, and it lets callers make our server request arbitrary addresses (SSRF).</li>
+<li><b>Settings read at startup, not import.</b> That one choice is why every test can get its own database and why the same code runs locally on SQLite and in production on Postgres.</li>
+<li><b>Health check reports the backend.</b> Cheap, and it is how we confirmed the Postgres cutover from outside.</li>
+<li><b>The UI is just another client of the API.</b> One HTML file served at <code>/</code>, calling <code>POST /v1/links</code> like curl would. No special routes. That is what an API-first design is for. Open it live: paste a link, shorten it, copy it.</li>
+</ul>
+<h2>4. The story of the day (5 min)</h2>
+<p>This is the strongest five minutes. It is real and it shows the README was honest before it was tested.</p>
+<ol>
+<li>First deploy was SQLite. README said: ephemeral disk, one file per container, will not work for more than one container.</li>
+<li>The console-created app ran two containers. Probe: about half of all redirects returned 404. Exactly the predicted failure.</li>
+<li>Dropped to one container to stabilise, then added the Postgres backend behind the same interface. Only the storage layer changed. Tests unchanged. CI gained a job that runs them all against a real Postgres.</li>
+<li>Hit a DigitalOcean gotcha: the dev database's permission grant runs during the deployment that attaches it, and a push superseded that deployment. Documented cause and fix in the README so nobody hits it twice.</li>
+<li>Same probe, two containers, Postgres: 12 of 12 redirects, all reads agree, data survives redeploys.</li>
+</ol>
+<p>"The platform's rollback caught every failed deploy. Users never saw an outage."</p>
+<h2>5. What I skipped and would do next (5 min)</h2>
+<p>In README order. Say why each is next, not just that it is.</p>
+<ol>
+<li><b>Custom domain.</b> Short links are <code>BASE_URL</code> plus code. Today the base is the long App Platform hostname. One setting fixes it.</li>
+<li><b>Auth on create and delete.</b> Anyone can delete any link. Smallest fix: return a per-link secret at creation, require it on delete. Then accounts and API keys.</li>
+<li><b>Rate limiting on create.</b> The only unauthenticated write.</li>
+<li><b>Metrics.</b> Request counts and latency histograms for alerting. Logs are there; metrics are the next layer.</li>
+<li><b>Async hit counting</b> at real scale. The synchronous row update becomes the write bottleneck. Emit an event, aggregate elsewhere.</li>
+</ol>
+<h2>6. Scaling, if asked (3 min)</h2>
+<ul>
+<li>Reads: redirect is one indexed lookup by primary key. Add containers; the pool handles it. Then a cache in front of the lookup, since links rarely change.</li>
+<li>Writes: creates are rare. Hits are the write load. Move counting off the request path (queue, then batch update or a counter store).</li>
+<li>Database: dev tier to production cluster is a <code>DATABASE_URL</code> change. Backups, standby, more connections come with it.</li>
+<li>Codes: 7 chars is 3.5 trillion. Bump to 8 long before it matters; nothing else changes.</li>
+</ul>
+<h2>7. Testing, if asked (3 min)</h2>
+<ul>
+<li>43 tests through FastAPI's TestClient against the real routes. Each test gets an empty database.</li>
+<li>They cover every endpoint's success path and every validation rule. Alias and URL rejections are parametrized, one case per rule.</li>
+<li>Same suite runs on Postgres in CI via a service container, so both backends are proven.</li>
+<li>Not covered, in the order I'd add them: concurrent writes, load, the Dockerfile beyond building.</li>
+<li>The expiry test advances the clock by monkeypatching one function instead of sleeping.</li>
+</ul>
+<h2>8. Observability, if asked (2 min)</h2>
+<ul>
+<li>One JSON line per request: method, path, status, latency, UTC time. Health checks at DEBUG so they don't drown traffic.</li>
+<li>Redirect path carries the code, so per-link traffic is derivable from logs alone.</li>
+<li>Unhandled exceptions are logged with traceback as 500 before re-raising.</li>
+<li>Show Runtime Logs in the console if there is time.</li>
+</ul>
+<h2>9. Questions to expect</h2>
+<ul>
+<li><b>Why Python?</b> Team preference in the brief, Pydantic gives validation for free, and I had a tested spec pattern for FastAPI.</li>
+<li><b>Why not an ORM?</b> Five SQL statements. An ORM would be more code than the storage layer it replaced.</li>
+<li><b>What if two people create the same alias at once?</b> Both insert; the primary key rejects the second; that one gets 409. No check-then-insert race.</li>
+<li><b>Why is delete not idempotent?</b> Second delete returns 404 because the resource is gone. Defensible either way; I chose to report the truth.</li>
+<li><b>Case sensitivity on aliases?</b> Case-sensitive, stored as given. Simpler, and <code>Docs</code> cannot hijack <code>/docs</code>. There is a test for that.</li>
+<li><b>Where would auth go?</b> A dependency on the two management routes. Redirect stays public by nature.</li>
+<li><b>How did AI tools factor in?</b> Used for generation against a spec I wrote first; I reviewed every commit against the requirement docs and verified each step live. The spec, the checkpoints, and the rollback story are the evidence.</li>
+</ul>
+<h2>Numbers, if useful</h2>
+<table><tr><td>Endpoints</td><td>5, plus the UI page</td></tr><tr><td>Tests</td><td>46, on 2 backends</td></tr><tr><td>Commits</td><td>18, one step each</td></tr><tr><td>Code size</td><td>8 app files plus one HTML page, about 500 lines of Python</td></tr><tr><td>Deploys today</td><td>~15, 3 failed, 0 outages</td></tr></table>
+</main></body></html>

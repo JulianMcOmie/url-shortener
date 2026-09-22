@@ -15,3 +15,10 @@ def test_page_is_not_in_api_schema(client):
     paths = client.get("/openapi.json").json()["paths"]
     assert "/" not in paths
     assert "/v1/links" in paths
+
+
+def test_page_can_list_and_delete_its_links(client):
+    """The history section uses only existing API calls: metadata GET and DELETE."""
+    page = client.get("/").text
+    assert "Your links" in page
+    assert 'method: "DELETE"' in page
