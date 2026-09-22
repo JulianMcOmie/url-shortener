@@ -40,4 +40,4 @@ def test_unknown_code_404_on_both(client):
 
 
 def test_redirect_does_not_shadow_healthz(client):
-    assert client.get("/healthz").json() == {"status": "ok"}
+    assert client.get("/healthz").json()["status"] == "ok"

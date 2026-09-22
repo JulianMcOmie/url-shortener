@@ -12,7 +12,7 @@ Live: https://url-shortener-pta8k.ondigitalocean.app/healthz
 
 | Method | Path              | Purpose                                  | Success | Errors |
 |--------|-------------------|------------------------------------------|---------|--------|
-| GET    | /healthz          | Platform health check                    | 200     |        |
+| GET    | /healthz          | Health check; reports storage backend    | 200     |        |
 | POST   | /v1/links         | Create a link; optional custom alias     | 201     | 422 invalid, 409 alias taken |
 | GET    | /v1/links/{code}  | Metadata for one link                    | 200     | 404 unknown code |
 | DELETE | /v1/links/{code}  | Retire a link; its code becomes free     | 204     | 404 unknown code |

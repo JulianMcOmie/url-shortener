@@ -33,6 +33,8 @@ class CodeTaken(Exception):
 
 
 class Storage:
+    name = "sqlite"
+
     def __init__(self, path: str) -> None:
         self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row

@@ -24,6 +24,8 @@ ALTER TABLE links ADD COLUMN IF NOT EXISTS expires_at TEXT;
 
 
 class PostgresStorage:
+    name = "postgres"
+
     def __init__(self, url: str) -> None:
         self._pool = ConnectionPool(url, min_size=1, max_size=4, kwargs={"row_factory": dict_row}, open=True)
         with self._pool.connection() as conn:

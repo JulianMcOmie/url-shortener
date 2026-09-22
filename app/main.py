@@ -43,8 +43,9 @@ async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
 
 
 @app.get("/healthz")
-def healthz() -> dict:
-    return {"status": "ok"}
+def healthz(request: Request) -> dict:
+    """Liveness plus which storage backend this container is using."""
+    return {"status": "ok", "storage": request.app.state.storage.name}
 
 
 @app.post("/v1/links", status_code=201, response_model=LinkResponse)
