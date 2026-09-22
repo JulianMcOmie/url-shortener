@@ -1,8 +1,9 @@
 """HTTP routes. No business logic lives here."""
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException
 
 from app.config import load_settings
 
