@@ -23,16 +23,24 @@
   input[type=text] {
     flex: 1; font: inherit; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px;
     color: var(--navy); background: var(--bg); outline: none; min-width: 0;
+    transition: border-color .15s ease, box-shadow .15s ease;
   }
+  input:hover { border-color: #b9c3d6; }
   input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,105,255,.15); }
   button {
     font: inherit; font-weight: 600; padding: 14px 22px; border: 0; border-radius: 8px;
     background: var(--blue); color: #fff; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(3,27,78,.12);
+    transition: background .15s ease, transform .1s ease, box-shadow .15s ease;
   }
-  button:hover { background: var(--blue-dark); }
-  button:disabled { opacity: .6; cursor: default; }
-  .link { background: none; color: var(--blue); padding: 0; font-weight: 500; }
-  .link:hover { background: none; text-decoration: underline; }
+  button:hover { background: var(--blue-dark); box-shadow: 0 4px 12px rgba(0,105,255,.25); transform: translateY(-1px); }
+  button:active { transform: translateY(0) scale(.98); box-shadow: 0 1px 2px rgba(3,27,78,.12); }
+  button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,105,255,.3); }
+  button:disabled { opacity: .6; cursor: default; transform: none; box-shadow: none; }
+  .link { background: none; color: var(--blue); padding: 4px 6px; margin-left: -6px; font-weight: 500; box-shadow: none; border-radius: 6px; }
+  .link:hover { background: rgba(0,105,255,.08); color: var(--blue-dark); box-shadow: none; transform: none; }
+  .link:active { background: rgba(0,105,255,.16); transform: none; }
+  #copy.done { background: var(--green); }
   .alias { display: none; margin-top: 12px; align-items: center; gap: 10px; color: var(--gray); font-size: 14px; }
   .alias.open { display: flex; }
   .alias span { white-space: nowrap; }
@@ -40,25 +48,31 @@
   .hint { margin-top: 12px; font-size: 14px; }
   .error { color: var(--red); margin-top: 12px; font-size: 14px; min-height: 1.4em; }
   #result { display: none; }
-  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px;
+          animation: rise .25s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .short { font-size: 22px; font-weight: 600; word-break: break-all; margin: 0 0 4px; }
-  .short a { color: var(--blue); text-decoration: none; }
-  .short a:hover { text-decoration: underline; }
+  .short a { color: var(--blue); text-decoration: none; transition: color .15s ease; }
+  .short a:hover { color: var(--blue-dark); text-decoration: underline; text-underline-offset: 3px; }
   .to { color: var(--gray); font-size: 14px; word-break: break-all; margin: 0 0 16px; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .again { margin-top: 18px; }
   #history { display: none; margin-top: 40px; }
   #history h2 { font-size: 14px; font-weight: 600; color: var(--gray); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; }
   .hist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-  .hist li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-  .hist .s { color: var(--blue); text-decoration: none; font-weight: 500; white-space: nowrap; }
-  .hist .s:hover { text-decoration: underline; }
+  .hist li { display: flex; align-items: center; gap: 12px; padding: 10px 6px; margin: 0 -6px; border-bottom: 1px solid var(--line); font-size: 14px;
+             border-radius: 6px; transition: background .15s ease; }
+  .hist li:hover { background: var(--soft); }
+  .hist .s { color: var(--blue); text-decoration: none; font-weight: 500; white-space: nowrap; transition: color .15s ease; }
+  .hist .s:hover { color: var(--blue-dark); text-decoration: underline; text-underline-offset: 3px; }
   .hist .l { color: var(--gray); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
   .hist .c { color: var(--gray); white-space: nowrap; }
-  .hist .d { background: none; color: var(--gray); padding: 4px 6px; font-weight: 500; font-size: 13px; }
-  .hist .d:hover { background: none; color: var(--red); }
+  .hist .d { background: none; color: var(--gray); padding: 4px 8px; font-weight: 500; font-size: 13px; box-shadow: none; border-radius: 6px; }
+  .hist .d:hover { background: rgba(192,57,43,.08); color: var(--red); box-shadow: none; transform: none; }
+  .hist .d:active { background: rgba(192,57,43,.16); transform: none; }
   footer { margin-top: 40px; text-align: center; font-size: 13px; color: var(--gray); }
-  footer a { color: var(--gray); }
+  footer a { color: var(--gray); text-decoration: none; border-bottom: 1px solid transparent; transition: color .15s ease, border-color .15s ease; }
+  footer a:hover { color: var(--navy); border-color: var(--navy); }
 </style>
 </head>
 <body>
@@ -188,9 +202,9 @@
   }
 
   $("copy").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText($("copy").dataset.url); $("copy").textContent = "Copied"; }
+    try { await navigator.clipboard.writeText($("copy").dataset.url); $("copy").textContent = "Copied"; $("copy").classList.add("done"); }
     catch { $("copy").textContent = "Select and copy"; }
-    setTimeout(() => { $("copy").textContent = "Copy"; }, 1500);
+    setTimeout(() => { $("copy").textContent = "Copy"; $("copy").classList.remove("done"); }, 1500);
   });
 
   $("again").addEventListener("click", () => {
