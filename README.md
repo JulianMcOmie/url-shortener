@@ -164,7 +164,7 @@ in that order.
 Every request is logged as one JSON line on stdout, which App Platform collects
 and shows under Runtime Logs:
 
-    {"time": "2026-09-22T19:40:12", "level": "INFO", "logger": "app.request", "message": "request",
+    {"time": "2026-09-22T19:40:12Z", "level": "INFO", "logger": "app.request", "message": "request",
      "method": "GET", "path": "/mHlophd", "status": 307, "duration_ms": 1.4}
 
 Health checks are logged at `DEBUG` so they do not drown out real traffic. Unhandled

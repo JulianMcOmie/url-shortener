@@ -31,3 +31,10 @@ def test_formatter_emits_one_json_line(client, caplog):
     assert parsed["status"] == 404
     assert parsed["path"] == "/v1/links/missing"
     assert "\n" not in line
+
+
+def test_log_time_is_utc(client, caplog):
+    with caplog.at_level(logging.INFO, logger="app.request"):
+        client.get("/v1/links/missing")
+    record = [r for r in caplog.records if r.name == "app.request"][0]
+    assert json.loads(JsonFormatter().format(record))["time"].endswith("Z")
