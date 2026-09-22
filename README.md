@@ -92,7 +92,7 @@ flowchart LR
         V[Visitor]
     end
 
-    subgraph service [FastAPI service, one container]
+    subgraph service [FastAPI service, each container]
         R["Routes<br/>app/main.py"]
         M["Validation<br/>app/models.py + app/codes.py"]
         L["Link logic<br/>app/links.py"]
@@ -103,12 +103,13 @@ flowchart LR
 
     C -- "POST /v1/links" --> R
     C -- "GET /v1/links/{code}" --> R
+    C -- "DELETE /v1/links/{code}" --> R
     V -- "GET /{code}" --> R
     R -- "422 on bad input" --> M
     M --> L
-    L -- "insert / get / record_hit" --> S
+    L -- "insert / get / record_hit / delete" --> S
     S --> DB
-    L -- "409 alias taken<br/>404 unknown code" --> R
+    L -- "409 alias taken<br/>404 unknown<br/>410 expired" --> R
     R -- "307 Location: long_url" --> V
 ```
 
@@ -118,15 +119,15 @@ random codes until one inserts cleanly. The primary key on `code` is what makes 
 alias uniqueness and collision detection reliable.
 
 Redirect: one `UPDATE ... RETURNING` both increments the hit count and fetches the
-target, so a redirect is a single write. Unknown codes are 404 in the same JSON shape
-as every other error.
+target, so a redirect is a single write. Unknown codes are 404 and expired ones 410,
+in the same JSON shape as every other error.
 
 ### Delivery
 
 ```mermaid
 flowchart LR
     Dev[git push main] --> GH[GitHub]
-    GH --> CI["GitHub Actions<br/>pytest + docker build"]
+    GH --> CI["GitHub Actions<br/>pytest on SQLite<br/>pytest on Postgres<br/>docker build"]
     GH -- "deploy_on_push" --> AP["App Platform<br/>builds Dockerfile"]
     AP -- "GET /healthz" --> Live[Live containers]
     Live --> PG[(Managed Postgres)]
@@ -247,6 +248,7 @@ re-create the database and let that deployment complete uninterrupted.
     .github/workflows/ci.yml
     .do/app.yaml
     Dockerfile, requirements.txt
+    documents/         overview.html, a visual walkthrough of the code
     spec.md            the plan this was built from
 
 ## Next steps

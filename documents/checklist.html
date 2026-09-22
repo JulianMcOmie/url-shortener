@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Requirements Checklist</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1b1f; --muted:#66666f; --line:#e2e2e8; --node:#f6f7fa; --accent:#0069ff;
+          --ok:#1a7f37; --okbg:#e8f5ec; --part:#b54708; --partbg:#fff4e5; --na:#66666f; --nabg:#f0f0f3; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#131316; --fg:#ececf1; --muted:#a0a0ab; --line:#2a2a31; --node:#1c1c22; --accent:#6ea8ff;
+    --ok:#4ade80; --okbg:#14291c; --part:#fbbf24; --partbg:#2e2412; --na:#a0a0ab; --nabg:#1f1f25; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 16px 80px; background:var(--bg); color:var(--fg);
+         font:15.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 44px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .lead { color: var(--muted); margin: 0 0 8px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; background: var(--node); padding: 1px 5px; border-radius: 4px; }
+  .item { display: grid; grid-template-columns: 96px 1fr; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; }
+  .badge { align-self: start; justify-self: start; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; }
+  .done { color: var(--ok); background: var(--okbg); }
+  .partial { color: var(--part); background: var(--partbg); }
+  .na { color: var(--na); background: var(--nabg); }
+  .item h3 { margin: 0 0 4px; font-size: 16px; }
+  .item .req { color: var(--muted); font-size: 13.5px; margin: 0 0 8px; font-style: italic; }
+  .item ul { margin: 4px 0 0; padding-left: 20px; }
+  .item li { margin: 3px 0; }
+  .gap { margin-top: 8px; padding: 8px 12px; border-left: 3px solid var(--part); background: var(--partbg); font-size: 14px; }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0 8px; }
+  .summary div { background: var(--node); border-radius: 8px; padding: 10px 14px; text-align: center; }
+  .summary b { display: block; font-size: 26px; }
+  .summary span { font-size: 13px; color: var(--muted); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Requirements checklist</h1>
+<p class="lead">Every point from the two briefing documents, with where the evidence is. Checked against the repo and the live deployment on 22 September 2026.</p>
+
+<div class="summary">
+  <div><b>17</b><span>points checked</span></div>
+  <div><b>16</b><span>fulfilled</span></div>
+  <div><b>1</b><span>not applicable</span></div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Technical details &amp; environment</h2>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>The Challenge</h3>
+    <p class="req">Build a functional REST API service that handles data ingestion and processing.</p>
+    <ul>
+      <li>Five REST endpoints: create, redirect, metadata, delete, health. <code>app/main.py</code></li>
+      <li>Ingestion: accepts long URLs with optional alias and expiry, validates, stores. Processing: generates codes, counts redirects, enforces expiry.</li>
+      <li>Live at <a href="https://url-shortener-pta8k.ondigitalocean.app/healthz">url-shortener-pta8k.ondigitalocean.app</a>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Languages</h3>
+    <p class="req">Go or Python preferred.</p>
+    <ul>
+      <li>Python 3.12 with FastAPI. <code>Dockerfile</code>, <code>requirements.txt</code></li>
+      <li>Six runtime dependencies, no ORM, no framework beyond FastAPI and Pydantic.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge na">N/A</span>
+  <div>
+    <h3>Hardware &amp; AI</h3>
+    <p class="req">Laptop with Copilot; other AI tools welcome.</p>
+    <ul>
+      <li>Not a deliverable. AI assistance was used against a written spec (<code>spec.md</code>) with review at each commit; the commit history shows one step per commit.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Deployment during the window</h3>
+    <p class="req">Deploy your service to our platform during the 3-hour window.</p>
+    <ul>
+      <li>Deployed to App Platform after the first commit (health check only), then continuously on every push.</li>
+      <li>Now running two containers against a managed Postgres dev database. Health check reports <code>"storage": "postgres"</code>.</li>
+      <li>App spec committed at <code>.do/app.yaml</code> so the deployment is reproducible with one <code>doctl</code> command.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>What they are looking for</h2>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Engineering quality</h3>
+    <p class="req">Clean code organization, sensible validation, and meaningful error handling.</p>
+    <ul>
+      <li>Four layers, each in its own file: routes, validation, link logic, storage. Routes contain no logic. <code>app/main.py</code>, <code>app/models.py</code>, <code>app/links.py</code>, <code>app/storage.py</code></li>
+      <li>About 500 lines across 8 app files; largest is 124 lines.</li>
+      <li>Every error has one shape, <code>{"error": "field: message"}</code>, including framework 404s. Two handlers in <code>app/main.py</code>.</li>
+      <li>Status codes chosen deliberately: 422 invalid, 409 alias taken, 404 unknown, 410 expired, 307 redirect.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Testing</h3>
+    <p class="req">Evidence of a structured approach to verifying code through automated testing.</p>
+    <ul>
+      <li>43 tests in 7 files, one file per feature, through FastAPI's <code>TestClient</code> against the real routes. <code>tests/</code></li>
+      <li>One fixture gives every test an empty database. <code>tests/conftest.py</code></li>
+      <li>Rejection cases are parametrized, one per validation rule (6 URL cases, 8 alias cases).</li>
+      <li>Same suite runs against SQLite and against a real Postgres in CI.</li>
+      <li>Tests were written alongside each feature; the spec listed them before the code existed.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Automation &amp; workflow</h3>
+    <p class="req">Leverage automation for consistent delivery and a streamlined development lifecycle.</p>
+    <ul>
+      <li>GitHub Actions on every push: tests on SQLite, tests on Postgres (service container), Docker image build. <code>.github/workflows/ci.yml</code>. All 16 runs green.</li>
+      <li>App Platform redeploys on push, gated by the health check, with automatic rollback. Three failed deploys today, zero outages.</li>
+      <li>Reproducible deployment from <code>.do/app.yaml</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Operational excellence</h3>
+    <p class="req">Observability, configurability, and scalability in a live environment.</p>
+    <ul>
+      <li><b>Observability:</b> one JSON log line per request (method, path, status, latency, UTC time), health checks at DEBUG, exceptions with traceback. Health endpoint reports the storage backend. <code>app/observability.py</code></li>
+      <li><b>Configurability:</b> four environment variables with local defaults, read once at startup. <code>app/config.py</code>, documented in README.</li>
+      <li><b>Scalability:</b> shared Postgres behind a connection pool, verified with two containers (12 of 12 redirects, consistent counts). Stateless containers. README names the next bottleneck (synchronous hit counting) and the fix.</li>
+    </ul>
+    <div class="gap">Honest limits: no metrics endpoint, no rate limiting, dev-tier database. All three are listed in README next steps with reasons.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Functional expectations</h2>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Creation</h3>
+    <p class="req">Accept a long URL and generate a unique shortened URL.</p>
+    <ul>
+      <li><code>POST /v1/links</code> returns 201 with a 7-character base62 code and the full <code>short_url</code>.</li>
+      <li>Uniqueness enforced by the primary key; collisions retried up to five times. <code>app/links.py</code>, <code>app/codes.py</code></li>
+      <li>Tests: <code>test_create_returns_generated_code</code>, <code>test_same_url_twice_gets_different_codes</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Customization</h3>
+    <p class="req">Generated short codes or user-defined custom aliases, with appropriate validation.</p>
+    <ul>
+      <li>Both supported. Optional <code>alias</code> in the create body.</li>
+      <li>Validation: 3 to 32 chars, <code>[A-Za-z0-9_-]</code>, case-sensitive, reserved words rejected, taken alias is 409. <code>app/codes.py</code></li>
+      <li>Tests: 12 in <code>tests/test_alias.py</code>, including that <code>Docs</code> cannot hijack <code>/docs</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Redirection</h3>
+    <p class="req">Redirect users to the original URL when the shortened link is accessed.</p>
+    <ul>
+      <li><code>GET /{code}</code> returns 307 with <code>Location</code>. Route registered last so it cannot shadow other paths.</li>
+      <li>One SQL statement checks expiry, increments the count, and returns the target. <code>app/storage.py</code> <code>record_hit</code></li>
+      <li>Tests: 5 in <code>tests/test_redirect.py</code>. Verified live, including through two containers.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Metadata &amp; retrieval</h3>
+    <p class="req">Return metadata about the shortened URL and allow retrieval for an existing short URL.</p>
+    <ul>
+      <li>Create returns the full metadata; <code>GET /v1/links/{code}</code> returns the same shape later: code, long URL, short URL, custom flag, hit count, created and expiry timestamps.</li>
+      <li>Reading metadata does not count as a hit. Test: <code>test_metadata_does_not_count_as_hit</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Engineering expectations</h2>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Architecture flow diagram</h3>
+    <p class="req">A diagram in the repository mapping the request lifecycle and data flow at a high level.</p>
+    <ul>
+      <li>Two Mermaid diagrams in the README: request lifecycle (clients, routes, validation, link logic, storage, Postgres, with the status codes on the edges) and delivery (push, CI, App Platform, containers, Postgres).</li>
+      <li>Both render on GitHub; validated with a Mermaid renderer after the last edit.</li>
+      <li>A longer visual walkthrough is at <code>documents/overview.html</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Validation</h3>
+    <p class="req">Sensible error handling, input validation, and edge-case management.</p>
+    <ul>
+      <li>URL: scheme, host, length, and a self-host check against redirect loops. Target is deliberately not fetched (SSRF).</li>
+      <li>Alias rules and reserved list. Expiry must be in the future; naive timestamps taken as UTC; offsets normalised.</li>
+      <li>Edge cases handled and tested: same URL twice, code collision, alias case sensitivity, deleted alias reuse, second delete, expired link not counted, old database file migrated.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Testing</h3>
+    <p class="req">Unit or integration tests that demonstrate correctness.</p>
+    <ul>
+      <li>Integration tests through the HTTP layer, 43 passing on both backends. See "Testing" above.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>CI/CD</h3>
+    <p class="req">A basic pipeline configuration, e.g. GitHub Actions.</p>
+    <ul>
+      <li><code>.github/workflows/ci.yml</code>: two test jobs and a Docker build on push and pull request.</li>
+      <li>CD via App Platform deploy-on-push, declared in <code>.do/app.yaml</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Documentation</h3>
+    <p class="req">A well-organized codebase and a README with clear setup, execution, and testing instructions.</p>
+    <ul>
+      <li>README: API reference with curl examples, validation rules, diagrams, design decisions with reasons, run locally, test (both backends), observability, configuration table, deploy, layout, next steps.</li>
+      <li>Every app file has a module docstring saying its job. Layout listed in README.</li>
+      <li><code>spec.md</code> shows the plan the code was built from.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Extensions</h2>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Deployment to DigitalOcean</h3>
+    <ul>
+      <li>App Platform, two containers, managed Postgres. Verified live after every feature.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <span class="badge done">DONE</span>
+  <div>
+    <h3>Customer-centric features</h3>
+    <ul>
+      <li><b>Custom aliases</b>, so a link can be memorable.</li>
+      <li><b>Hit counting</b> in the metadata, the reason anyone uses a shortener over the raw URL.</li>
+      <li><b>Expiry</b> with a clear 410 after the date, for time-limited campaigns.</li>
+      <li><b>Delete</b>, with the code freed for reuse.</li>
+      <li><b>Errors that name the field</b>, so a caller can fix their input.</li>
+      <li>Next in line, with reasons, in README: custom domain, auth, rate limiting, metrics.</li>
+    </ul>
+  </div>
+</div>
+
+</main>
+</body>
+</html>
