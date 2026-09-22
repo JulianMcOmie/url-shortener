@@ -1,10 +1,11 @@
 """HTTP routes. No business logic lives here."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.exceptions import HTTPException
 
 from app import links
@@ -25,6 +26,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="URL Shortener", version="0.1.0", lifespan=lifespan)
+
+INDEX_HTML = (Path(__file__).parent / "index.html").read_text()
 app.middleware("http")(log_requests)
 
 
@@ -40,6 +43,12 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
 @app.exception_handler(HTTPException)
 async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def index() -> HTMLResponse:
+    """The one-page UI. It is a plain client of the API below; no special routes."""
+    return HTMLResponse(INDEX_HTML)
 
 
 @app.get("/healthz")

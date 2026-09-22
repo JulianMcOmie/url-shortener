@@ -12,13 +12,15 @@ Live: https://url-shortener-pta8k.ondigitalocean.app/healthz
 
 | Method | Path              | Purpose                                  | Success | Errors |
 |--------|-------------------|------------------------------------------|---------|--------|
+| GET    | /                 | One-page UI for creating links           | 200     |        |
 | GET    | /healthz          | Health check; reports storage backend    | 200     |        |
 | POST   | /v1/links         | Create a link; optional custom alias     | 201     | 422 invalid, 409 alias taken |
 | GET    | /v1/links/{code}  | Metadata for one link                    | 200     | 404 unknown code |
 | DELETE | /v1/links/{code}  | Retire a link; its code becomes free     | 204     | 404 unknown code |
 | GET    | /{code}           | Redirect to the long URL, count the hit  | 307     | 404 unknown code, 410 expired |
 
-Interactive docs are served at `/docs`.
+The root serves a single-page UI (`app/index.html`) that is a plain client of the API
+below. Interactive API docs are served at `/docs`.
 
 Every error is JSON with one message that names the offending field:
 
@@ -178,7 +180,7 @@ Then open http://localhost:8080/docs.
 
     pytest -q
 
-43 tests, run with FastAPI's `TestClient` against the real routes. Each test gets an
+46 tests, run with FastAPI's `TestClient` against the real routes. Each test gets an
 empty database, so tests never depend on each other. They cover every endpoint's
 success path and every validation rule above.
 
@@ -237,6 +239,7 @@ re-create the database and let that deployment complete uninterrupted.
 ## Layout
 
     app/main.py        routes only
+    app/index.html     the one-page UI, served at /
     app/models.py      request and response schemas, URL validation
     app/codes.py       code generation, alias rules, reserved list
     app/links.py       create, get, follow, delete; the only caller of storage

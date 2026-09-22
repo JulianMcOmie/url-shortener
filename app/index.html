@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shorten a link</title>
+<style>
+  :root {
+    --blue: #0069ff; --blue-dark: #0052cc; --navy: #031b4e; --gray: #5b6b8c;
+    --line: #dfe4ee; --bg: #ffffff; --soft: #f5f7fb; --red: #c0392b; --green: #1a7f37;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--navy);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+  }
+  main { width: 100%; max-width: 560px; }
+  h1 { font-size: 28px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .sub { color: var(--gray); margin: 0 0 28px; }
+  form .row { display: flex; gap: 10px; }
+  input[type=url], input[type=text] {
+    flex: 1; font: inherit; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--navy); background: var(--bg); outline: none; min-width: 0;
+  }
+  input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,105,255,.15); }
+  button {
+    font: inherit; font-weight: 600; padding: 14px 22px; border: 0; border-radius: 8px;
+    background: var(--blue); color: #fff; cursor: pointer; white-space: nowrap;
+  }
+  button:hover { background: var(--blue-dark); }
+  button:disabled { opacity: .6; cursor: default; }
+  .link { background: none; color: var(--blue); padding: 0; font-weight: 500; }
+  .link:hover { background: none; text-decoration: underline; }
+  .alias { display: none; margin-top: 12px; align-items: center; gap: 10px; color: var(--gray); font-size: 14px; }
+  .alias.open { display: flex; }
+  .alias span { white-space: nowrap; }
+  .alias input { padding: 10px 12px; font-size: 14px; }
+  .hint { margin-top: 12px; font-size: 14px; }
+  .error { color: var(--red); margin-top: 12px; font-size: 14px; min-height: 1.4em; }
+  #result { display: none; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; }
+  .short { font-size: 22px; font-weight: 600; word-break: break-all; margin: 0 0 4px; }
+  .short a { color: var(--blue); text-decoration: none; }
+  .short a:hover { text-decoration: underline; }
+  .to { color: var(--gray); font-size: 14px; word-break: break-all; margin: 0 0 16px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .meta { color: var(--gray); font-size: 14px; margin-left: auto; }
+  .again { margin-top: 18px; }
+  footer { margin-top: 40px; text-align: center; font-size: 13px; color: var(--gray); }
+  footer a { color: var(--gray); }
+</style>
+</head>
+<body>
+<main>
+  <section id="create">
+    <h1>Shorten a link</h1>
+    <p class="sub">Paste a long address. Get a short one.</p>
+    <form id="form">
+      <div class="row">
+        <input id="url" type="url" placeholder="https://" required autofocus autocomplete="off" spellcheck="false">
+        <button id="submit" type="submit">Shorten</button>
+      </div>
+      <div class="hint"><button type="button" class="link" id="toggle">Choose your own name</button></div>
+      <div class="alias" id="aliasRow">
+        <span id="host"></span>
+        <input id="alias" type="text" placeholder="my-link" maxlength="32" pattern="[A-Za-z0-9_\-]{3,32}" title="3 to 32 letters, digits, hyphen or underscore" autocomplete="off" spellcheck="false">
+      </div>
+    </form>
+    <div class="error" id="error" role="alert"></div>
+  </section>
+
+  <section id="result">
+    <div class="card">
+      <p class="short"><a id="shortLink" href="#" target="_blank" rel="noopener"></a></p>
+      <p class="to" id="longUrl"></p>
+      <div class="row">
+        <button id="copy" type="button">Copy</button>
+        <span class="meta" id="meta"></span>
+      </div>
+    </div>
+    <div class="again"><button type="button" class="link" id="again">Shorten another</button></div>
+  </section>
+
+  <footer><a href="/docs">API</a></footer>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const host = location.origin + "/";
+  $("host").textContent = host;
+
+  $("toggle").addEventListener("click", () => {
+    $("aliasRow").classList.toggle("open");
+    if ($("aliasRow").classList.contains("open")) $("alias").focus();
+  });
+
+  $("alias").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); $("form").requestSubmit(); }
+  });
+
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("error").textContent = "";
+    $("submit").disabled = true;
+    const body = { long_url: $("url").value.trim() };
+    const alias = $("alias").value.trim();
+    if ($("aliasRow").classList.contains("open") && alias) body.alias = alias;
+    try {
+      const r = await fetch("/v1/links", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) { $("error").textContent = data.error || "Something went wrong."; return; }
+      show(data);
+    } catch {
+      $("error").textContent = "Could not reach the server.";
+    } finally {
+      $("submit").disabled = false;
+    }
+  });
+
+  function show(link) {
+    $("shortLink").textContent = link.short_url.replace(/^https?:\/\//, "");
+    $("shortLink").href = link.short_url;
+    $("longUrl").textContent = "→ " + link.long_url;
+    $("meta").textContent = link.custom ? "custom name" : "generated name";
+    $("create").style.display = "none";
+    $("result").style.display = "block";
+    $("copy").textContent = "Copy";
+    $("copy").dataset.url = link.short_url;
+  }
+
+  $("copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("copy").dataset.url); $("copy").textContent = "Copied"; }
+    catch { $("copy").textContent = "Select and copy"; }
+    setTimeout(() => { $("copy").textContent = "Copy"; }, 1500);
+  });
+
+  $("again").addEventListener("click", () => {
+    $("form").reset();
+    $("aliasRow").classList.remove("open");
+    $("result").style.display = "none";
+    $("create").style.display = "block";
+    $("url").focus();
+  });
+</script>
+</body>
+</html>
