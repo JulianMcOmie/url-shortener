@@ -11,7 +11,7 @@ from app import links
 from app.config import load_settings
 from app.models import CreateLinkRequest, LinkResponse
 from app.observability import configure_logging, log_requests
-from app.storage import Storage
+from app.storage import open_storage
 
 
 @asynccontextmanager
@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     settings = load_settings()
     configure_logging(settings.log_level)
     app.state.settings = settings
-    app.state.storage = Storage(settings.database_path)
+    app.state.storage = open_storage(settings.database_url, settings.database_path)
     yield
     app.state.storage.close()
 

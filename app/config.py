@@ -7,6 +7,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Settings:
     database_path: str
+    database_url: str
     base_url: str
     log_level: str
 
@@ -14,6 +15,7 @@ class Settings:
 def load_settings() -> Settings:
     return Settings(
         database_path=os.environ.get("DATABASE_PATH", "./links.db"),
+        database_url=os.environ.get("DATABASE_URL", ""),
         base_url=os.environ.get("BASE_URL", "http://localhost:8080").rstrip("/"),
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
     )

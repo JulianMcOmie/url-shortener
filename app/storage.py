@@ -1,4 +1,7 @@
-"""SQLite persistence. Nothing outside this file knows how links are stored."""
+"""SQLite persistence, plus the factory that picks a backend.
+
+Nothing outside the storage modules knows how links are stored.
+"""
 
 import sqlite3
 import threading
@@ -109,3 +112,11 @@ class Storage:
             created_at=row["created_at"],
             expires_at=row["expires_at"],
         )
+
+
+def open_storage(database_url: str, database_path: str):
+    """Postgres when DATABASE_URL is set, SQLite otherwise."""
+    if database_url:
+        from app.storage_postgres import PostgresStorage  # optional backend, imported on demand
+        return PostgresStorage(database_url)
+    return Storage(database_path)

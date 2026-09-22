@@ -3,7 +3,8 @@
 A REST service that accepts a long URL, returns a short code, redirects visitors
 of the short code to the long URL, and reports metadata about each link.
 
-Python 3.12, FastAPI, SQLite. Deployed to DigitalOcean App Platform from the Dockerfile.
+Python 3.12, FastAPI, Postgres in production and SQLite for local runs and tests.
+Deployed to DigitalOcean App Platform from the Dockerfile.
 
 Live: https://url-shortener-pta8k.ondigitalocean.app/healthz
 
@@ -95,10 +96,10 @@ flowchart LR
         R["Routes<br/>app/main.py"]
         M["Validation<br/>app/models.py + app/codes.py"]
         L["Link logic<br/>app/links.py"]
-        S["Storage<br/>app/storage.py"]
+        S["Storage<br/>app/storage.py (SQLite)<br/>app/storage_postgres.py"]
     end
 
-    DB[("SQLite<br/>links table<br/>code PRIMARY KEY")]
+    DB[("Managed Postgres<br/>links table<br/>code PRIMARY KEY")]
 
     C -- "POST /v1/links" --> R
     C -- "GET /v1/links/{code}" --> R
@@ -127,7 +128,8 @@ flowchart LR
     Dev[git push main] --> GH[GitHub]
     GH --> CI["GitHub Actions<br/>pytest + docker build"]
     GH -- "deploy_on_push" --> AP["App Platform<br/>builds Dockerfile"]
-    AP -- "GET /healthz" --> Live[Live container]
+    AP -- "GET /healthz" --> Live[Live containers]
+    Live --> PG[(Managed Postgres)]
 ```
 
 CI and deploy run in parallel from the same push. App Platform only routes traffic to
@@ -143,14 +145,18 @@ which is the price of having metadata.
 codes. Random needs no shared counter across instances and does not reveal how many
 links exist. Collisions are handled by retrying the insert, up to five times.
 
-**SQLite behind a Storage class.** Persistence is real locally and across process
-restarts, and nothing outside `app/storage.py` knows how data is stored. The trade-off:
-App Platform's disk is ephemeral, so links do not survive a redeploy, and a second
-container would not share them. This is visible during a rolling deploy: for a minute or
-so, requests are split between the old and new containers, and a link created on one
-returns 404 from the other. The production answer is managed Postgres, which is a
-change inside that one file. Hit counting is a synchronous row update; at scale that
-becomes the write bottleneck and would move to an event stream with async aggregation.
+**Storage behind one interface, two backends.** Nothing outside the two storage
+modules knows how links are stored. `DATABASE_URL` unset means SQLite in a local file:
+zero setup for development, and each test gets a fresh file. `DATABASE_URL` set means
+managed Postgres through a small connection pool, which is what the deployed app uses.
+CI runs the full test suite against both.
+
+Why Postgres in production: App Platform's disk is ephemeral and per container. The
+first deploy ran two containers on SQLite and about half of all redirects returned 404,
+because each container had its own file. A shared database is the fix, and it also
+means links survive redeploys. Hit counting is still a synchronous row update; at much
+larger scale that becomes the write bottleneck and would move to an event stream with
+async aggregation.
 
 **410 for expired, 404 for unknown.** A client following an expired link learns it
 existed and is gone for good, which a 404 would not say. The hit-count update and the
@@ -171,13 +177,18 @@ Then open http://localhost:8080/docs.
 
     pytest -q
 
-43 tests, run with FastAPI's `TestClient` against the real routes. Each test gets a
-fresh SQLite file, so tests never depend on each other. They cover every endpoint's
+43 tests, run with FastAPI's `TestClient` against the real routes. Each test gets an
+empty database, so tests never depend on each other. They cover every endpoint's
 success path and every validation rule above.
 
-Not covered: concurrent writes, behaviour under load, the deployed database, and the
-Dockerfile beyond CI checking that it builds. Those would be the next tests to add,
-in that order.
+The same suite runs against Postgres when `TEST_DATABASE_URL` is set. CI does this
+with a Postgres service container, so both backends are proven on every push. Locally:
+
+    docker run -d --name pg -e POSTGRES_PASSWORD=test -e POSTGRES_DB=links -p 55432:5432 postgres:16-alpine
+    TEST_DATABASE_URL=postgresql://postgres:test@localhost:55432/links pytest -q
+
+Not covered: concurrent writes, behaviour under load, and the Dockerfile beyond CI
+checking that it builds. Those would be the next tests to add, in that order.
 
 ## Observability
 
@@ -195,18 +206,22 @@ short code, so per-link traffic can be derived from the logs without extra table
 
 | Variable        | Default                  | Purpose                                  |
 |-----------------|--------------------------|------------------------------------------|
-| `DATABASE_PATH` | `./links.db`             | SQLite file location                     |
+| `DATABASE_URL`  | unset                    | Postgres connection string; unset means SQLite |
+| `DATABASE_PATH` | `./links.db`             | SQLite file location, used when `DATABASE_URL` is unset |
 | `BASE_URL`      | `http://localhost:8080`  | Used to build `short_url` in responses   |
 | `LOG_LEVEL`     | `INFO`                   | `DEBUG` also logs health checks          |
 
 ## Deploy
 
-The app spec is in `.do/app.yaml`. It binds `BASE_URL` to App Platform's `${APP_URL}`
-and sets the health check to `/healthz`.
+The app spec is in `.do/app.yaml`. It declares the web service and a dev Postgres
+database, binds `BASE_URL` to App Platform's `${APP_URL}` and `DATABASE_URL` to the
+database's connection string, and sets the health check to `/healthz`.
 
     doctl apps create --spec .do/app.yaml
 
-After that, every push to `main` redeploys.
+After that, every push to `main` redeploys. Without a database attached, the app
+falls back to SQLite on the container's ephemeral disk, which is fine for a single
+container but not for more.
 
 ## Layout
 
@@ -214,7 +229,8 @@ After that, every push to `main` redeploys.
     app/models.py      request and response schemas, URL validation
     app/codes.py       code generation, alias rules, reserved list
     app/links.py       create, get, follow, delete; the only caller of storage
-    app/storage.py     Storage class over SQLite, with a tiny forward migration
+    app/storage.py     SQLite backend, shared types, and the backend factory
+    app/storage_postgres.py  Postgres backend, same interface, connection pool
     app/config.py      settings from environment variables
     app/observability.py  JSON log formatter and request logging middleware
     tests/             pytest, one file per feature
@@ -227,8 +243,7 @@ After that, every push to `main` redeploys.
 
 In the order I would do them:
 
-1. Managed Postgres, then a second instance.
-2. Auth on create and delete. Today anyone can delete any link; a per-link
+1. Auth on create and delete. Today anyone can delete any link; a per-link
    secret returned at creation would be the smallest fix.
-3. Rate limiting on create, since it is the only unauthenticated write.
-4. Metrics endpoint (request counts and latency histograms) for alerting.
+2. Rate limiting on create, since it is the only unauthenticated write.
+3. Metrics endpoint (request counts and latency histograms) for alerting.
