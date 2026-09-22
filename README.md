@@ -151,7 +151,7 @@ Then open http://localhost:8080/docs.
 
     pytest -q
 
-27 tests, run with FastAPI's `TestClient` against the real routes. Each test gets a
+30 tests, run with FastAPI's `TestClient` against the real routes. Each test gets a
 fresh SQLite file, so tests never depend on each other. They cover every endpoint's
 success path and every validation rule above.
 
@@ -159,12 +159,25 @@ Not covered: concurrent writes, behaviour under load, the deployed database, and
 Dockerfile beyond CI checking that it builds. Those would be the next tests to add,
 in that order.
 
+## Observability
+
+Every request is logged as one JSON line on stdout, which App Platform collects
+and shows under Runtime Logs:
+
+    {"time": "2026-09-22T19:40:12", "level": "INFO", "logger": "app.request", "message": "request",
+     "method": "GET", "path": "/mHlophd", "status": 307, "duration_ms": 1.4}
+
+Health checks are logged at `DEBUG` so they do not drown out real traffic. Unhandled
+exceptions are logged with a traceback and status 500. The redirect path carries the
+short code, so per-link traffic can be derived from the logs without extra tables.
+
 ## Configuration
 
 | Variable        | Default                  | Purpose                                  |
 |-----------------|--------------------------|------------------------------------------|
 | `DATABASE_PATH` | `./links.db`             | SQLite file location                     |
 | `BASE_URL`      | `http://localhost:8080`  | Used to build `short_url` in responses   |
+| `LOG_LEVEL`     | `INFO`                   | `DEBUG` also logs health checks          |
 
 ## Deploy
 
@@ -183,6 +196,7 @@ After that, every push to `main` redeploys.
     app/links.py       create, get, follow; the only caller of storage
     app/storage.py     Storage class over SQLite
     app/config.py      settings from environment variables
+    app/observability.py  JSON log formatter and request logging middleware
     tests/             pytest, one file per feature
     .github/workflows/ci.yml
     .do/app.yaml
@@ -193,9 +207,8 @@ After that, every push to `main` redeploys.
 
 In the order I would do them:
 
-1. Structured request logging (method, path, status, latency, code) so the redirect
-   path is observable.
-2. `DELETE /v1/links/{code}`, so a bad link can be retired.
-3. `expires_at` on create, checked on redirect.
-4. Managed Postgres, then a second instance.
-5. Rate limiting on create, since it is the only unauthenticated write.
+1. `DELETE /v1/links/{code}`, so a bad link can be retired.
+2. `expires_at` on create, checked on redirect.
+3. Managed Postgres, then a second instance.
+4. Rate limiting on create, since it is the only unauthenticated write.
+5. Metrics endpoint (request counts and latency histograms) for alerting.

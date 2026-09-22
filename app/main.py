@@ -10,12 +10,14 @@ from starlette.exceptions import HTTPException
 from app import links
 from app.config import load_settings
 from app.models import CreateLinkRequest, LinkResponse
+from app.observability import configure_logging, log_requests
 from app.storage import Storage
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = load_settings()
+    configure_logging(settings.log_level)
     app.state.settings = settings
     app.state.storage = Storage(settings.database_path)
     yield
@@ -23,6 +25,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="URL Shortener", version="0.1.0", lifespan=lifespan)
+app.middleware("http")(log_requests)
 
 
 @app.exception_handler(RequestValidationError)
