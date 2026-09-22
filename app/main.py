@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException
 
 from app import links
@@ -49,3 +49,16 @@ def create_link(body: CreateLinkRequest, request: Request) -> LinkResponse:
     state = request.app.state
     link = links.create_link(state.storage, state.settings.base_url, body.long_url)
     return links.to_response(link, state.settings.base_url)
+
+
+@app.get("/v1/links/{code}", response_model=LinkResponse)
+def get_link(code: str, request: Request) -> LinkResponse:
+    state = request.app.state
+    return links.to_response(links.get_link(state.storage, code), state.settings.base_url)
+
+
+# Registered last so it never shadows /healthz or /v1/... paths.
+@app.get("/{code}", status_code=307, response_class=RedirectResponse)
+def redirect(code: str, request: Request) -> RedirectResponse:
+    link = links.follow_link(request.app.state.storage, code)
+    return RedirectResponse(link.long_url, status_code=307)

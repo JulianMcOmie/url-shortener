@@ -32,3 +32,18 @@ def create_link(storage: Storage, base_url: str, long_url: str) -> Link:
         except CodeTaken:
             continue
     raise HTTPException(500, "could not generate a unique code, try again")
+
+
+def get_link(storage: Storage, code: str) -> Link:
+    link = storage.get(code)
+    if link is None:
+        raise HTTPException(404, "link not found")
+    return link
+
+
+def follow_link(storage: Storage, code: str) -> Link:
+    """Record a hit and return the link to redirect to."""
+    link = storage.record_hit(code)
+    if link is None:
+        raise HTTPException(404, "link not found")
+    return link
