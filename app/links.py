@@ -56,3 +56,8 @@ def follow_link(storage: Storage, code: str) -> Link:
     if link is None:
         raise HTTPException(404, "link not found")
     return link
+
+
+def delete_link(storage: Storage, code: str) -> None:
+    if not storage.delete(code):
+        raise HTTPException(404, "link not found")

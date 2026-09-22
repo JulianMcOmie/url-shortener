@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.exceptions import HTTPException
 
 from app import links
@@ -58,6 +58,12 @@ def create_link(body: CreateLinkRequest, request: Request) -> LinkResponse:
 def get_link(code: str, request: Request) -> LinkResponse:
     state = request.app.state
     return links.to_response(links.get_link(state.storage, code), state.settings.base_url)
+
+
+@app.delete("/v1/links/{code}", status_code=204)
+def delete_link(code: str, request: Request) -> Response:
+    links.delete_link(request.app.state.storage, code)
+    return Response(status_code=204)
 
 
 # Registered last so it never shadows /healthz or /v1/... paths.

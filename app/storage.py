@@ -63,6 +63,12 @@ class Storage:
             ).fetchone()
         return self._to_link(row) if row else None
 
+    def delete(self, code: str) -> bool:
+        """Remove a link. Returns False if the code was unknown."""
+        with self._lock, self._conn:
+            cur = self._conn.execute("DELETE FROM links WHERE code = ?", (code,))
+        return cur.rowcount == 1
+
     def close(self) -> None:
         self._conn.close()
 

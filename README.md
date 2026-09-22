@@ -14,6 +14,7 @@ Live: https://url-shortener-pta8k.ondigitalocean.app/healthz
 | GET    | /healthz          | Platform health check                    | 200     |        |
 | POST   | /v1/links         | Create a link; optional custom alias     | 201     | 422 invalid, 409 alias taken |
 | GET    | /v1/links/{code}  | Metadata for one link                    | 200     | 404 unknown code |
+| DELETE | /v1/links/{code}  | Retire a link; its code becomes free     | 204     | 404 unknown code |
 | GET    | /{code}           | Redirect to the long URL, count the hit  | 307     | 404 unknown code |
 
 Interactive docs are served at `/docs`.
@@ -45,6 +46,13 @@ Add `"alias": "launch"` to the body to choose the code yourself.
 
     HTTP/1.1 307 Temporary Redirect
     location: https://www.digitalocean.com/products/app-platform
+
+### Delete a link
+
+    curl -X DELETE https://url-shortener-pta8k.ondigitalocean.app/v1/links/mHlophd
+
+Returns 204. The short link stops redirecting immediately and the code can be
+claimed again as a custom alias.
 
 ### Read metadata
 
@@ -151,7 +159,7 @@ Then open http://localhost:8080/docs.
 
     pytest -q
 
-30 tests, run with FastAPI's `TestClient` against the real routes. Each test gets a
+35 tests, run with FastAPI's `TestClient` against the real routes. Each test gets a
 fresh SQLite file, so tests never depend on each other. They cover every endpoint's
 success path and every validation rule above.
 
@@ -193,7 +201,7 @@ After that, every push to `main` redeploys.
     app/main.py        routes only
     app/models.py      request and response schemas, URL validation
     app/codes.py       code generation, alias rules, reserved list
-    app/links.py       create, get, follow; the only caller of storage
+    app/links.py       create, get, follow, delete; the only caller of storage
     app/storage.py     Storage class over SQLite
     app/config.py      settings from environment variables
     app/observability.py  JSON log formatter and request logging middleware
@@ -207,8 +215,9 @@ After that, every push to `main` redeploys.
 
 In the order I would do them:
 
-1. `DELETE /v1/links/{code}`, so a bad link can be retired.
-2. `expires_at` on create, checked on redirect.
-3. Managed Postgres, then a second instance.
+1. `expires_at` on create, checked on redirect.
+2. Managed Postgres, then a second instance.
+3. Auth on create and delete. Today anyone can delete any link; a per-link
+   secret returned at creation would be the smallest fix.
 4. Rate limiting on create, since it is the only unauthenticated write.
 5. Metrics endpoint (request counts and latency histograms) for alerting.
