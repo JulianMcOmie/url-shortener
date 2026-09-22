@@ -1,7 +1,7 @@
-"""Postgres persistence with the same interface as app.storage.Storage.
+"""Postgres storage. Same five methods as the SQLite Storage class.
 
-Used when DATABASE_URL is set. A small connection pool makes it safe for the
-thread pool that serves sync routes, and lets several containers share one database.
+Used when DATABASE_URL is set. A small pool of connections lets many requests,
+and many containers, share one database safely.
 """
 
 from psycopg import errors

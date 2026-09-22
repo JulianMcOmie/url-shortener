@@ -38,7 +38,7 @@ class CreateLinkRequest(BaseModel):
         if value is None:
             return None
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)  # naive timestamps are taken as UTC
+            value = value.replace(tzinfo=timezone.utc)  # no timezone given: assume UTC
         if value <= datetime.now(timezone.utc):
             raise ValueError("must be in the future")
         return value

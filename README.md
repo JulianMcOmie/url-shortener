@@ -183,9 +183,12 @@ Then open http://localhost:8080/docs.
 
     pytest -q
 
-46 tests, run with FastAPI's `TestClient` against the real routes. Each test gets an
-empty database, so tests never depend on each other. They cover every endpoint's
-success path and every validation rule above.
+61 tests. Most are integration tests: they send real requests through FastAPI's
+`TestClient` to the real routes and a real database, and each test gets an empty
+database so tests never depend on each other. They cover every endpoint's success
+path and every validation rule above. `tests/test_units.py` holds the unit tests
+for the pure functions (code generation, alias rules, timestamp formatting, the log
+formatter), which pin down the rules the integration tests then see applied.
 
 The same suite runs against Postgres when `TEST_DATABASE_URL` is set. CI does this
 with a Postgres service container, so both backends are proven on every push. Locally:
@@ -251,7 +254,7 @@ re-create the database and let that deployment complete uninterrupted.
     app/storage_postgres.py  Postgres backend, same interface, connection pool
     app/config.py      settings from environment variables
     app/observability.py  JSON log formatter and request logging middleware
-    tests/             pytest, one file per feature
+    tests/             pytest, one file per feature, plus test_units.py
     .github/workflows/ci.yml
     .do/app.yaml
     Dockerfile, requirements.txt

@@ -1,4 +1,4 @@
-"""Structured JSON logging and per-request access logs."""
+"""Request logging. One JSON line per request on stdout."""
 
 import json
 import logging
@@ -11,7 +11,7 @@ log = logging.getLogger("app.request")
 
 
 class JsonFormatter(logging.Formatter):
-    converter = time.gmtime  # log in UTC, matching created_at
+    converter = time.gmtime  # UTC, same as created_at
 
     def format(self, record: logging.LogRecord) -> str:
         payload = {
@@ -27,7 +27,7 @@ class JsonFormatter(logging.Formatter):
 
 
 def configure_logging(level: str) -> None:
-    """One JSON line per record on stdout, which is what App Platform collects."""
+    """Send every log record to stdout as one JSON line. App Platform collects stdout."""
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     root = logging.getLogger()
@@ -36,9 +36,9 @@ def configure_logging(level: str) -> None:
 
 
 async def log_requests(request: Request, call_next):
-    """Log method, path, status and latency for every request.
+    """Log method, path, status and time taken for every request.
 
-    Health checks are logged at DEBUG so they do not drown out real traffic.
+    Health checks go to DEBUG so they do not drown out real traffic.
     """
     start = time.perf_counter()
     try:

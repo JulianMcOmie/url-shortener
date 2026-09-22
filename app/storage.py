@@ -1,6 +1,6 @@
-"""SQLite persistence, plus the factory that picks a backend.
+"""SQLite storage, the types both backends share, and open_storage, which picks one.
 
-Nothing outside the storage modules knows how links are stored.
+Nothing outside the two storage modules knows how links are stored.
 """
 
 import sqlite3
@@ -56,7 +56,7 @@ class Storage:
             self._migrate()
 
     def _migrate(self) -> None:
-        """Bring an older database file up to the current schema."""
+        """Add columns that older database files are missing."""
         columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(links)")}
         if "expires_at" not in columns:
             self._conn.execute("ALTER TABLE links ADD COLUMN expires_at TEXT")
@@ -81,11 +81,11 @@ class Storage:
         return self._to_link(row) if row else None
 
     def record_hit(self, code: str, now: str) -> Link | None:
-        """Increment the hit count and return the link.
+        """Add one to the hit count and return the link.
 
         Returns None if the code is unknown or the link expired before `now`, so an
-        expired link never counts a hit. Timestamps compare as strings because they
-        are all stored in the same UTC format.
+        expired link is never counted. Timestamps are compared as text, which works
+        because they are all stored in the same format.
         """
         with self._lock, self._conn:
             row = self._conn.execute(
@@ -119,6 +119,6 @@ class Storage:
 def open_storage(database_url: str, database_path: str):
     """Postgres when DATABASE_URL is set, SQLite otherwise."""
     if database_url:
-        from app.storage_postgres import PostgresStorage  # optional backend, imported on demand
+        from app.storage_postgres import PostgresStorage  # imported here so SQLite-only runs never load psycopg
         return PostgresStorage(database_url)
     return Storage(database_path)

@@ -1,4 +1,4 @@
-"""HTTP routes. No business logic lives here."""
+"""HTTP routes. Each one hands off to app/links.py; no logic lives here."""
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -33,7 +33,7 @@ app.middleware("http")(log_requests)
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
-    """Collapse Pydantic's error list into one message that names the field."""
+    """Turn a validation failure into one message that names the field."""
     first = exc.errors()[0]
     field = ".".join(str(p) for p in first["loc"] if p != "body") or "body"
     msg = first["msg"].removeprefix("Value error, ")
@@ -47,13 +47,13 @@ async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def index() -> HTMLResponse:
-    """The one-page UI. It is a plain client of the API below; no special routes."""
+    """The one-page UI. It calls the same API as everyone else."""
     return HTMLResponse(INDEX_HTML)
 
 
 @app.get("/healthz")
 def healthz(request: Request) -> dict:
-    """Liveness plus which storage backend this container is using."""
+    """Is this container alive, and which database is it using."""
     return {"status": "ok", "storage": request.app.state.storage.name}
 
 
@@ -78,7 +78,7 @@ def delete_link(code: str, request: Request) -> Response:
     return Response(status_code=204)
 
 
-# Registered last so it never shadows /healthz or /v1/... paths.
+# Last on purpose: /{code} would otherwise capture /healthz and /v1/... as well.
 @app.get("/{code}", status_code=307, response_class=RedirectResponse)
 def redirect(code: str, request: Request) -> RedirectResponse:
     link = links.follow_link(request.app.state.storage, code)

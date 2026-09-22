@@ -1,4 +1,4 @@
-"""Link creation and lookup. Routes call this; this calls storage."""
+"""What the service does with links. Routes call this; this calls storage."""
 
 from urllib.parse import urlparse
 
@@ -54,10 +54,10 @@ def get_link(storage: Storage, code: str) -> Link:
 
 
 def follow_link(storage: Storage, code: str) -> Link:
-    """Record a hit and return the link to redirect to.
+    """Count a visit and return the link to redirect to.
 
-    410 for a link that exists but has expired: the client learns it is gone for
-    good, which a 404 would not say.
+    410 if the link exists but has expired, so the visitor knows it is gone
+    for good rather than mistyped.
     """
     link = storage.record_hit(code, now=utc_now())
     if link is not None:

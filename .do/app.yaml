@@ -8,7 +8,7 @@ services:
     github:
       repo: JulianMcOmie/url-shortener
       branch: main
-      deploy_on_push: false  # CI deploys after tests pass
+      deploy_on_push: false  # the CI workflow deploys, after the tests pass
     dockerfile_path: Dockerfile
     http_port: 8080
     instance_count: 2
