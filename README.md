@@ -130,7 +130,9 @@ links exist. Collisions are handled by retrying the insert, up to five times.
 **SQLite behind a Storage class.** Persistence is real locally and across process
 restarts, and nothing outside `app/storage.py` knows how data is stored. The trade-off:
 App Platform's disk is ephemeral, so links do not survive a redeploy, and a second
-container would not share them. The production answer is managed Postgres, which is a
+container would not share them. This is visible during a rolling deploy: for a minute or
+so, requests are split between the old and new containers, and a link created on one
+returns 404 from the other. The production answer is managed Postgres, which is a
 change inside that one file. Hit counting is a synchronous row update; at scale that
 becomes the write bottleneck and would move to an event stream with async aggregation.
 
