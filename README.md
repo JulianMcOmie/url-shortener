@@ -223,6 +223,16 @@ After that, every push to `main` redeploys. Without a database attached, the app
 falls back to SQLite on the container's ephemeral disk, which is fine for a single
 container but not for more.
 
+The attached database is App Platform's dev tier, a cost choice for this exercise.
+Moving to a production managed cluster (backups, standby, more connections) is a
+change to `DATABASE_URL` only; the code path is the same one CI tests.
+
+One operational note: App Platform grants the dev database user its schema
+permissions during the deployment that attaches it. If that deployment is
+superseded by a push before it finishes, the grant never happens and the app fails
+at startup with `permission denied for schema public`. The fix is to delete and
+re-create the database and let that deployment complete uninterrupted.
+
 ## Layout
 
     app/main.py        routes only

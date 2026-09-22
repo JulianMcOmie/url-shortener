@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URL Shortener Explained</title>
+<style>
+  :root {
+    --bg: #fff; --fg: #1b1b1f; --muted: #66666f; --line: #e2e2e8;
+    --node: #f6f7fa; --node-line: #cfd3dc; --accent: #0069ff; --hl: #e6efff;
+    --ok: #1a7f37; --warn: #b54708; --err: #c0392b; --paper: #fff8e6; --paper-line: #e8d9a8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131316; --fg: #ececf1; --muted: #a0a0ab; --line: #2a2a31;
+      --node: #1c1c22; --node-line: #3a3a45; --accent: #6ea8ff; --hl: #1c2a44;
+      --ok: #4ade80; --warn: #fbbf24; --err: #f87171; --paper: #2a2517; --paper-line: #5a4d22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px 16px 80px; background: var(--bg); color: var(--fg);
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 30px; margin: 0 0 6px; }
+  h2 { font-size: 23px; margin: 60px 0 4px; }
+  h3 { font-size: 17px; margin: 22px 0 4px; }
+  p { margin: 8px 0; max-width: 72ch; }
+  .lead { color: var(--muted); font-size: 17px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  p code { background: var(--node); padding: 1px 5px; border-radius: 4px; font-size: 13.5px; }
+  .fig { margin: 16px 0; }
+  .fig svg { width: 100%; height: auto; display: block; }
+  .cap { font-size: 13.5px; color: var(--muted); margin: 4px 0 0; }
+  .sec { display: grid; grid-template-columns: 1fr 240px; gap: 24px; align-items: start; margin-top: 12px; }
+  @media (max-width: 760px) { .sec { grid-template-columns: 1fr; } }
+  .tree { background: var(--node); border: 1px solid var(--node-line); border-radius: 8px; padding: 10px 12px; }
+  .tree .t { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em; margin-bottom: 4px; }
+  .tree pre { margin: 0; line-height: 1.6; }
+  .tree .hl { background: var(--hl); color: var(--accent); font-weight: 700; border-radius: 3px; padding: 0 3px; }
+  .tree .dim { color: var(--muted); }
+  .flow { display: flex; flex-direction: column; }
+  .node { background: var(--node); border: 1px solid var(--node-line); border-radius: 8px; padding: 9px 12px; }
+  .node .f { display: inline-block; font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+  .node .say { font-size: 15px; margin-bottom: 4px; }
+  .node code { display: block; white-space: pre; overflow-x: auto; color: var(--muted); }
+  .node.http { border-color: var(--accent); }
+  .arrow { text-align: center; color: var(--muted); font-size: 13px; padding: 1px 0; line-height: 1.3; }
+  .arrow::before { content: "↓"; display: block; font-size: 16px; color: var(--node-line); }
+  .branch { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .out { border-left: 4px solid var(--ok); }
+  .out.warn { border-left-color: var(--warn); }
+  .out.err { border-left-color: var(--err); }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 14.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .sheet td, .sheet th { border: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  .sheet th { background: var(--node); }
+  .why { background: var(--paper); border: 1px solid var(--paper-line); border-radius: 8px; padding: 10px 14px; margin: 12px 0; max-width: 72ch; }
+  .why b { display: block; margin-bottom: 2px; }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--fg); }
+  svg .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  svg .mu { fill: var(--muted); }
+  svg .ac { fill: var(--accent); font-weight: 700; }
+  svg .box { fill: var(--node); stroke: var(--node-line); }
+  svg .box.a { stroke: var(--accent); }
+  svg .box.paper { fill: var(--paper); stroke: var(--paper-line); }
+  svg .ln { stroke: var(--node-line); stroke-width: 1.6; fill: none; }
+  svg .ln.a { stroke: var(--accent); }
+  svg .ln.g { stroke: var(--ok); }
+  svg .ln.r { stroke: var(--err); }
+  .gl dt { font-weight: 700; margin-top: 8px; } .gl dd { margin: 0; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>The URL shortener, explained</h1>
+<p class="lead">What it does, how it does it, and where each piece lives in the code. No prior knowledge assumed.</p>
+
+<!-- ================================================================ -->
+<h2>1. The idea: a coat check for links</h2>
+<p>Long web addresses are ugly and hard to share. You hand this service a long address, it hands you back a short ticket. Anyone who uses the ticket gets sent to the long address. The service also remembers how many times each ticket was used.</p>
+<div class="fig">
+<svg viewBox="0 0 900 250" role="img" aria-label="Coat check analogy">
+  <defs><marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--node-line)"/></marker>
+  <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>
+  <!-- you -->
+  <rect class="box" x="20" y="30" width="230" height="70" rx="10"/>
+  <text x="35" y="55" font-size="14" font-weight="700">You</text>
+  <text x="35" y="78" font-size="12" class="mu mono">https://www.digitalocean.com/products/app-platform</text>
+  <text x="35" y="92" font-size="11" class="mu">"please shorten this"</text>
+  <!-- service -->
+  <rect class="box a" x="335" y="20" width="230" height="90" rx="10"/>
+  <text x="350" y="45" font-size="14" font-weight="700">The service</text>
+  <text x="350" y="66" font-size="12" class="mu">1. invents a ticket:</text>
+  <text x="350" y="84" font-size="13" class="mono ac">mHlophd</text>
+  <text x="350" y="100" font-size="12" class="mu">2. writes it in the ledger, next to the long address</text>
+  <path class="ln" d="M250,65 L333,65" marker-end="url(#m)"/>
+  <path class="ln" d="M335,85 C300,85 300,140 250,140" marker-end="url(#m)"/>
+  <rect class="box" x="20" y="120" width="230" height="40" rx="10"/>
+  <text x="35" y="145" font-size="13">you get back: <tspan class="mono ac">short.link/mHlophd</tspan></text>
+  <!-- ledger -->
+  <rect class="box paper" x="650" y="20" width="230" height="90" rx="6"/>
+  <text x="665" y="42" font-size="13" font-weight="700">The ledger</text>
+  <text x="665" y="62" font-size="11.5" class="mono">mHlophd → digitalocean.com/…   used: 0</text>
+  <text x="665" y="80" font-size="11.5" class="mono">k3Xp9Qa → example.com/…        used: 4</text>
+  <text x="665" y="98" font-size="11.5" class="mono">launch  → mysite.com/…         used: 12</text>
+  <path class="ln" d="M565,65 L648,65" marker-end="url(#m)"/>
+  <!-- visitor -->
+  <rect class="box" x="20" y="185" width="230" height="50" rx="10"/>
+  <text x="35" y="207" font-size="14" font-weight="700">Someone else, later</text>
+  <text x="35" y="226" font-size="12" class="mu">clicks short.link/mHlophd</text>
+  <path class="ln a" d="M250,210 L333,210" marker-end="url(#ma)"/>
+  <rect class="box a" x="335" y="185" width="230" height="50" rx="10"/>
+  <text x="350" y="207" font-size="13">looks up <tspan class="mono">mHlophd</tspan>, adds 1 to "used",</text>
+  <text x="350" y="226" font-size="13">replies: "go to digitalocean.com/…"</text>
+  <path class="ln a" d="M565,210 L648,210" marker-end="url(#ma)"/>
+  <rect class="box" x="650" y="185" width="230" height="50" rx="10"/>
+  <text x="665" y="215" font-size="13">their browser lands on the long address</text>
+</svg>
+</div>
+
+<!-- ================================================================ -->
+<h2>2. What "a REST API service" means</h2>
+<p>A <b>service</b> is a program that runs all day on a computer somewhere and waits for messages. An <b>API</b> is the list of messages it understands. <b>REST</b> is just the common style for those messages: each one is a verb plus an address, and the reply is a status number plus some data.</p>
+<div class="fig">
+<svg viewBox="0 0 900 150" role="img" aria-label="Request and response">
+  <rect class="box" x="20" y="35" width="200" height="80" rx="10"/>
+  <text x="35" y="60" font-size="14" font-weight="700">Client</text>
+  <text x="35" y="80" font-size="12" class="mu">a browser, an app,</text>
+  <text x="35" y="96" font-size="12" class="mu">or a curl command</text>
+  <rect class="box a" x="680" y="35" width="200" height="80" rx="10"/>
+  <text x="695" y="60" font-size="14" font-weight="700">Our service</text>
+  <text x="695" y="80" font-size="12" class="mu">Python, running in a</text>
+  <text x="695" y="96" font-size="12" class="mu">container on DigitalOcean</text>
+  <path class="ln" d="M225,60 L675,60" marker-end="url(#m)"/>
+  <text x="450" y="52" font-size="12" text-anchor="middle" class="mono">request:  POST /v1/links   {"long_url": "https://…"}</text>
+  <text x="450" y="76" font-size="11" text-anchor="middle" class="mu">verb + address + optional data</text>
+  <path class="ln" d="M675,100 L225,100" marker-end="url(#m)"/>
+  <text x="450" y="118" font-size="12" text-anchor="middle" class="mono">response:  201 Created   {"code": "mHlophd", "short_url": "…"}</text>
+  <text x="450" y="137" font-size="11" text-anchor="middle" class="mu">status number + data</text>
+</svg>
+</div>
+<p>This service understands five messages. That is the whole menu:</p>
+<table>
+  <tr><th>Message</th><th>In plain words</th><th>Good reply</th><th>Bad replies</th></tr>
+  <tr><td><code>POST /v1/links</code></td><td>"Shorten this address for me." Optionally: "and call it <i>launch</i>" or "and make it expire on Friday."</td><td>201, here is your link</td><td>422 your input is wrong · 409 that name is taken</td></tr>
+  <tr><td><code>GET /mHlophd</code></td><td>"Take me where this ticket points."</td><td>307, go over there</td><td>404 no such ticket · 410 this ticket expired</td></tr>
+  <tr><td><code>GET /v1/links/mHlophd</code></td><td>"Tell me about this ticket." (Does not count as a visit.)</td><td>200, here are the details</td><td>404</td></tr>
+  <tr><td><code>DELETE /v1/links/mHlophd</code></td><td>"Tear up this ticket."</td><td>204, done</td><td>404</td></tr>
+  <tr><td><code>GET /healthz</code></td><td>"Are you alive?" DigitalOcean asks this every few seconds.</td><td>200, yes</td><td></td></tr>
+</table>
+<div class="why"><b>Why the numbers?</b> Status numbers are a shared language. 2xx means it worked, 4xx means the request was the problem, 5xx means the service was the problem. A browser or another program can act on the number without reading the words.</div>
+
+<!-- ================================================================ -->
+<h2>3. How the code is organised: four counters in a row</h2>
+<p>The code is split into layers. A request walks past each one in order. Each layer has one job and only talks to its neighbours. Think of a restaurant: the host takes your order, the kitchen cooks it, the pantry holds the ingredients. The host never touches the pantry.</p>
+<div class="sec">
+<div>
+<div class="fig">
+<svg viewBox="0 0 660 330" role="img" aria-label="Layers">
+  <rect class="box a" x="20" y="20" width="620" height="60" rx="10"/>
+  <text x="35" y="42" font-size="14" font-weight="700">The front desk <tspan class="mu" font-weight="400">— receives requests, sends replies, nothing else</tspan></text>
+  <text x="35" y="66" font-size="12" class="mono ac">app/main.py</text>
+  <text x="140" y="66" font-size="12" class="mono mu">def create_link(body, request)   def redirect(code, request)   …</text>
+  <path class="ln" d="M330,80 L330,98" marker-end="url(#m)"/>
+  <rect class="box" x="20" y="100" width="620" height="60" rx="10"/>
+  <text x="35" y="122" font-size="14" font-weight="700">The checker <tspan class="mu" font-weight="400">— is this input acceptable? If not, say exactly what is wrong</tspan></text>
+  <text x="35" y="146" font-size="12" class="mono ac">app/models.py · app/codes.py</text>
+  <text x="240" y="146" font-size="12" class="mono mu">class CreateLinkRequest   def validate_alias(alias) -> str</text>
+  <path class="ln" d="M330,160 L330,178" marker-end="url(#m)"/>
+  <rect class="box" x="20" y="180" width="620" height="60" rx="10"/>
+  <text x="35" y="202" font-size="14" font-weight="700">The brains <tspan class="mu" font-weight="400">— invent codes, decide 404 vs 410, retry on collisions</tspan></text>
+  <text x="35" y="226" font-size="12" class="mono ac">app/links.py</text>
+  <text x="140" y="226" font-size="12" class="mono mu">def create_link(…) -> Link   def follow_link(storage, code) -> Link</text>
+  <path class="ln" d="M330,240 L330,258" marker-end="url(#m)"/>
+  <rect class="box" x="20" y="260" width="620" height="60" rx="10"/>
+  <text x="35" y="282" font-size="14" font-weight="700">The ledger <tspan class="mu" font-weight="400">— save, look up, count, delete. The only layer that touches the database</tspan></text>
+  <text x="35" y="306" font-size="12" class="mono ac">app/storage.py · app/storage_postgres.py</text>
+  <text x="330" y="306" font-size="12" class="mono mu">insert · get · record_hit · delete</text>
+</svg>
+</div>
+<div class="why"><b>Why bother with layers?</b> Each layer can be tested, understood, and replaced on its own. Swapping the database (which we did, see section 7) touched only the bottom layer.</div>
+</div>
+<div class="tree" data-hl="app/main.py,app/models.py,app/codes.py,app/links.py,app/storage.py,app/storage_postgres.py"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2>4. Story: shortening a link</h2>
+<p>Follow one request all the way down and back. Each step names the one line of code that does it.</p>
+<div class="sec">
+<div class="flow">
+  <div class="node http"><span class="f">the request arrives</span><div class="say">"Shorten <code style="display:inline;color:inherit">https://www.digitalocean.com/products/app-platform</code>, and call it <b>launch</b>."</div><code>POST /v1/links   {"long_url": "https://www.digitalocean.com/…", "alias": "launch"}</code></div>
+  <div class="arrow">the framework reads the JSON and checks it against a template</div>
+  <div class="node"><span class="f">checker · app/models.py</span><div class="say">The template says what fields exist and what type they are.</div><code>class CreateLinkRequest(BaseModel):
+    long_url: str    alias: str | None    expires_at: datetime | None</code></div>
+  <div class="arrow">each field gets inspected</div>
+  <div class="branch">
+    <div class="node"><span class="f">app/models.py</span><div class="say">Is it a real web address?</div><code>def must_be_http_url(cls, value: str) -> str</code></div>
+    <div class="node"><span class="f">app/codes.py</span><div class="say">Is the name allowed? 3 to 32 letters, digits, - or _. Not a word we use ourselves.</div><code>def validate_alias(alias: str) -> str</code></div>
+    <div class="node"><span class="f">app/models.py</span><div class="say">Is the expiry in the future?</div><code>def must_be_future(cls, value) -> datetime | None</code></div>
+  </div>
+  <div class="arrow">all good, so the front desk gets called</div>
+  <div class="node"><span class="f">front desk · app/main.py</span><div class="say">Three lines. Passes the checked fields to the brains and formats whatever comes back.</div><code>def create_link(body: CreateLinkRequest, request: Request) -> LinkResponse</code></div>
+  <div class="arrow"></div>
+  <div class="node"><span class="f">brains · app/links.py</span><div class="say">First rule: you cannot shorten a link to this service itself (that would loop forever). Then: a name was given, so use it.</div><code>def create_link(storage, base_url, long_url, alias=None, expires_at=None) -> Link</code></div>
+  <div class="arrow">if no name had been given, it would invent one instead:</div>
+  <div class="node"><span class="f">app/codes.py</span><div class="say">Seven random characters from a–z, A–Z, 0–9. That is 3.5 trillion possibilities, so two people almost never get the same one. If they do, the ledger says so and we try again.</div><code>def generate_code() -> str</code></div>
+  <div class="arrow"></div>
+  <div class="node"><span class="f">ledger · app/storage.py</span><div class="say">Write the row. The database itself refuses a duplicate code, which is how we notice "launch" was already taken.</div><code>def insert(self, code, long_url, custom, expires_at=None) -> Link      # raises CodeTaken</code></div>
+  <div class="arrow">back up the stack</div>
+  <div class="node"><span class="f">brains · app/links.py</span><div class="say">Glue the short address together from the configured domain plus the code.</div><code>def to_response(link: Link, base_url: str) -> LinkResponse</code></div>
+  <div class="arrow"></div>
+  <div class="node http out"><span class="f">the reply</span><code>201 Created
+{"code": "launch", "short_url": "https://url-shortener-pta8k.ondigitalocean.app/launch",
+ "long_url": "https://www.digitalocean.com/…", "custom": true, "hit_count": 0,
+ "created_at": "2026-09-22T19:19:59Z", "expires_at": null}</code></div>
+</div>
+<div class="tree" data-hl="app/main.py,app/models.py,app/codes.py,app/links.py,app/storage.py"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2>5. Story: someone clicks the short link</h2>
+<p>A <b>redirect</b> is the service saying "not here, go there." The browser follows automatically, so the person just sees the real page appear.</p>
+<div class="fig">
+<svg viewBox="0 0 900 190" role="img" aria-label="Redirect dance">
+  <rect class="box" x="20" y="20" width="180" height="60" rx="10"/>
+  <text x="35" y="45" font-size="14" font-weight="700">Browser</text>
+  <text x="35" y="66" font-size="12" class="mu">user clicks short link</text>
+  <rect class="box a" x="360" y="20" width="180" height="60" rx="10"/>
+  <text x="375" y="45" font-size="14" font-weight="700">Our service</text>
+  <text x="375" y="66" font-size="12" class="mu">looks up the code, +1 visit</text>
+  <rect class="box" x="700" y="20" width="180" height="60" rx="10"/>
+  <text x="715" y="45" font-size="14" font-weight="700">The real website</text>
+  <text x="715" y="66" font-size="12" class="mu">digitalocean.com</text>
+  <path class="ln a" d="M205,40 L355,40" marker-end="url(#ma)"/>
+  <text x="280" y="33" font-size="11.5" text-anchor="middle" class="mono">GET /launch</text>
+  <path class="ln" d="M355,65 L205,65" marker-end="url(#m)"/>
+  <text x="280" y="84" font-size="11.5" text-anchor="middle" class="mono">307  Location: https://www.digitalocean.com/…</text>
+  <path class="ln a" d="M120,80 C120,150 700,150 715,80" marker-end="url(#ma)"/>
+  <text x="420" y="160" font-size="12" text-anchor="middle" class="mu">the browser goes there on its own; the user never sees the middle step</text>
+</svg>
+</div>
+<div class="sec">
+<div class="flow">
+  <div class="node http"><span class="f">the request</span><code>GET /launch</code></div>
+  <div class="arrow"></div>
+  <div class="node"><span class="f">front desk · app/main.py</span><div class="say">This route is written last in the file on purpose, so it can never swallow <code style="display:inline">/healthz</code> or <code style="display:inline">/v1/…</code>.</div><code>def redirect(code: str, request: Request) -> RedirectResponse</code></div>
+  <div class="arrow"></div>
+  <div class="node"><span class="f">brains · app/links.py</span><div class="say">Ask the ledger to count a visit and hand back the destination, but only if the link has not expired.</div><code>def follow_link(storage, code: str) -> Link</code></div>
+  <div class="arrow"></div>
+  <div class="node"><span class="f">ledger · app/storage.py</span><div class="say">One database instruction does three things at once: check it is not expired, add 1 to the count, return the row. Doing it in one step means two visitors at the same moment cannot lose a count.</div><code>def record_hit(self, code: str, now: str) -> Link | None</code></div>
+  <div class="arrow">did a row come back?</div>
+  <div class="branch">
+    <div class="node out"><span class="f">yes</span><div class="say">Go there.</div><code>307  Location: &lt;long_url&gt;</code></div>
+    <div class="node out warn"><span class="f">no, but the code exists</span><div class="say">It expired. Say so, and do not count it.</div><code>410  {"error": "link expired"}</code></div>
+    <div class="node out err"><span class="f">no, and the code does not exist</span><div class="say">Never heard of it.</div><code>404  {"error": "link not found"}</code></div>
+  </div>
+</div>
+<div class="tree" data-hl="app/main.py,app/links.py,app/storage.py"></div>
+</div>
+<div class="why"><b>Why 307 and not 301?</b> Both mean "go there." But 301 means "permanently, and remember that," so a browser stops asking us and goes straight to the destination next time. We would never see those visits, and the count would be wrong. 307 means "for now," so every click comes through us.</div>
+
+<!-- ================================================================ -->
+<h2>6. Story: when the input is wrong</h2>
+<p>Bad input is normal. The job is to refuse it clearly. Every error this service returns has the same shape: a status number and one sentence naming the field that is wrong.</p>
+<table>
+  <tr><th>You send</th><th>You get back</th></tr>
+  <tr><td><code>{"long_url": "ftp://files.example.com"}</code></td><td><code>422 {"error": "long_url: must start with http:// or https://"}</code></td></tr>
+  <tr><td><code>{"long_url": "https://…", "alias": "ab"}</code></td><td><code>422 {"error": "alias: must be 3 to 32 characters"}</code></td></tr>
+  <tr><td><code>{"long_url": "https://…", "alias": "healthz"}</code></td><td><code>422 {"error": "alias: is reserved"}</code></td></tr>
+  <tr><td><code>{"long_url": "https://…", "alias": "launch"}</code> (again)</td><td><code>409 {"error": "alias: already taken"}</code></td></tr>
+  <tr><td><code>{"long_url": "https://…", "expires_at": "2020-01-01T00:00:00Z"}</code></td><td><code>422 {"error": "expires_at: must be in the future"}</code></td></tr>
+  <tr><td><code>{"long_url": "https://url-shortener-pta8k.ondigitalocean.app/x"}</code></td><td><code>422 {"error": "long_url: must not point at this service"}</code></td></tr>
+  <tr><td><code>GET /doesnotexist</code></td><td><code>404 {"error": "link not found"}</code></td></tr>
+</table>
+<div class="sec">
+<div class="flow">
+  <div class="node"><span class="f">a checker says no · app/models.py or app/codes.py</span><div class="say">Checkers do not know about HTTP. They just complain in plain words.</div><code>raise ValueError("must start with http:// or https://")</code></div>
+  <div class="arrow">the framework collects the complaint and hands it to a catcher</div>
+  <div class="node"><span class="f">catcher · app/main.py</span><div class="say">Turns the complaint into the standard error shape, with the field name in front.</div><code>async def validation_error(_, exc: RequestValidationError) -> JSONResponse</code></div>
+  <div class="arrow">meanwhile, the brains raise their own kind of "no" (404, 409, 410)</div>
+  <div class="node"><span class="f">catcher · app/main.py</span><div class="say">Same shape for those, and for the framework's own "no such page."</div><code>async def http_error(_, exc: HTTPException) -> JSONResponse</code></div>
+</div>
+<div class="tree" data-hl="app/main.py,app/models.py,app/codes.py,app/links.py"></div>
+</div>
+<div class="why"><b>Why one shape?</b> Whoever writes a program against this API only has to handle errors one way. And "the field named X is wrong because Y" is something a person can act on; a bare 422 is not.</div>
+
+<!-- ================================================================ -->
+<h2>7. Where the data lives</h2>
+<p>A database is a spreadsheet that many programs can write to at the same time without stepping on each other. This service has one sheet.</p>
+<table class="sheet">
+  <tr><th>code</th><th>long_url</th><th>custom</th><th>hit_count</th><th>created_at</th><th>expires_at</th></tr>
+  <tr><td>mHlophd</td><td>https://www.digitalocean.com/products/app-platform</td><td>false</td><td>8</td><td>2026-09-22T19:19:59Z</td><td></td></tr>
+  <tr><td>launch</td><td>https://www.digitalocean.com/…</td><td>true</td><td>0</td><td>2026-09-22T19:40:12Z</td><td></td></tr>
+  <tr><td>k3Xp9Qa</td><td>https://example.com/some/path</td><td>false</td><td>4</td><td>2026-09-22T18:02:31Z</td><td>2026-12-31T23:59:59Z</td></tr>
+</table>
+<p class="cap">The <b>code</b> column is the primary key: the database guarantees no two rows share one. That single rule is what makes "alias already taken" and "random code collided" detectable without any extra code.</p>
+
+<h3>Two ways to keep that sheet</h3>
+<div class="fig">
+<svg viewBox="0 0 900 230" role="img" aria-label="SQLite vs Postgres">
+  <text x="20" y="22" font-size="14" font-weight="700">SQLite: a file next to the program</text>
+  <rect class="box a" x="20" y="35" width="200" height="90" rx="10"/>
+  <text x="35" y="60" font-size="13">container</text>
+  <rect class="box paper" x="40" y="72" width="160" height="40" rx="6"/>
+  <text x="50" y="97" font-size="12" class="mono">links.db</text>
+  <text x="20" y="150" font-size="12.5" class="mu">Zero setup. Perfect for your laptop and for tests.</text>
+  <text x="20" y="168" font-size="12.5" class="mu">But the file lives inside the container. New container,</text>
+  <text x="20" y="186" font-size="12.5" class="mu">new empty file. Two containers, two different files.</text>
+
+  <text x="480" y="22" font-size="14" font-weight="700">Postgres: a separate database server</text>
+  <rect class="box a" x="480" y="35" width="150" height="60" rx="10"/>
+  <text x="495" y="70" font-size="13">container 1</text>
+  <rect class="box a" x="480" y="110" width="150" height="60" rx="10"/>
+  <text x="495" y="145" font-size="13">container 2</text>
+  <rect class="box paper" x="730" y="55" width="150" height="90" rx="10"/>
+  <text x="745" y="80" font-size="13" font-weight="700">Postgres</text>
+  <text x="745" y="100" font-size="12" class="mu">managed by</text>
+  <text x="745" y="116" font-size="12" class="mu">DigitalOcean</text>
+  <text x="745" y="134" font-size="12" class="mono">links table</text>
+  <path class="ln" d="M632,65 L725,90" marker-end="url(#m)"/>
+  <path class="ln" d="M632,140 L725,110" marker-end="url(#m)"/>
+  <text x="480" y="200" font-size="12.5" class="mu">Every container talks to the same sheet. Survives redeploys. Scales sideways.</text>
+</svg>
+</div>
+<div class="why"><b>This bit us for real.</b> The first deployment ran two containers, each with its own SQLite file. A link created on one was unknown to the other, so about half of all clicks got a 404. The fix was Postgres. The code change was small because only the bottom layer knew about the database.</div>
+<div class="sec">
+<div class="flow">
+  <div class="node"><span class="f">app/storage.py</span><div class="say">At startup, pick a ledger. Is there a database address in the settings?</div><code>def open_storage(database_url: str, database_path: str)</code></div>
+  <div class="arrow"></div>
+  <div class="branch">
+    <div class="node"><span class="f">no → app/storage.py</span><div class="say">Use the file.</div><code>class Storage:          # name = "sqlite"</code></div>
+    <div class="node"><span class="f">yes → app/storage_postgres.py</span><div class="say">Connect to the server, keeping a few connections open and ready.</div><code>class PostgresStorage:  # name = "postgres"</code></div>
+  </div>
+  <div class="arrow">both answer to exactly the same five calls, so nothing above them cares which one it got</div>
+  <div class="node"><code>insert(code, long_url, custom, expires_at) -> Link
+get(code) -> Link | None
+record_hit(code, now) -> Link | None
+delete(code) -> bool
+close()</code></div>
+</div>
+<div class="tree" data-hl="app/storage.py,app/storage_postgres.py"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2>8. Knowing what is going on</h2>
+<p>Once the service is running far away, you cannot watch it. Two things stand in for your eyes.</p>
+<div class="sec">
+<div>
+<h3>A diary: one line per request</h3>
+<p>Every request writes a single line: what was asked, what was answered, and how long it took. DigitalOcean collects these lines and shows them in the console. If something is slow or failing, this is where you look first.</p>
+<div class="node out"><span class="f">one log line, as it appears in Runtime Logs</span><code>{"time": "2026-09-22T19:40:12Z", "level": "INFO", "logger": "app.request", "message": "request",
+ "method": "GET", "path": "/launch", "status": 307, "duration_ms": 1.4}</code></div>
+<div class="flow" style="margin-top:10px">
+  <div class="node"><span class="f">app/observability.py</span><div class="say">Wraps around every request like a stopwatch.</div><code>async def log_requests(request: Request, call_next)</code></div>
+  <div class="arrow"></div>
+  <div class="node"><span class="f">app/observability.py</span><div class="say">Formats each line as JSON so tools can search it, with times in UTC.</div><code>class JsonFormatter(logging.Formatter)</code></div>
+</div>
+<h3>A pulse: "are you alive?"</h3>
+<p>DigitalOcean calls <code>/healthz</code> every few seconds. If a container stops answering, traffic is moved away from it. It also tells you which ledger that container is using.</p>
+<div class="node"><span class="f">app/main.py</span><code>def healthz(request) -> dict      # {"status": "ok", "storage": "postgres"}</code></div>
+</div>
+<div class="tree" data-hl="app/observability.py,app/main.py"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2>9. Knobs you can turn without touching code</h2>
+<p>Settings come from <b>environment variables</b>: named values the hosting platform hands to the program when it starts. The same code runs on a laptop and in production; only the knobs differ.</p>
+<div class="sec">
+<div>
+<table>
+  <tr><th>Knob</th><th>On your laptop</th><th>In production</th><th>What it changes</th></tr>
+  <tr><td><code>DATABASE_URL</code></td><td>unset</td><td>the Postgres address</td><td>which ledger to use (section 7)</td></tr>
+  <tr><td><code>BASE_URL</code></td><td><code>http://localhost:8080</code></td><td><code>https://url-shortener-…app</code></td><td>the front half of every short link</td></tr>
+  <tr><td><code>LOG_LEVEL</code></td><td><code>INFO</code></td><td><code>INFO</code></td><td><code>DEBUG</code> also logs the health checks</td></tr>
+  <tr><td><code>DATABASE_PATH</code></td><td><code>./links.db</code></td><td>unused</td><td>where the SQLite file goes</td></tr>
+</table>
+<div class="node"><span class="f">app/config.py</span><div class="say">Read once at startup into a small, unchangeable object.</div><code>class Settings: database_path, database_url, base_url, log_level
+def load_settings() -> Settings</code></div>
+</div>
+<div class="tree" data-hl="app/config.py,.do/app.yaml"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2>10. The robot that checks the work</h2>
+<p>Tests are small programs that use the API the way a customer would and check the answers. There are 43 of them. They run on every change, so a mistake shows up in minutes instead of in production.</p>
+<div class="fig">
+<svg viewBox="0 0 900 140" role="img" aria-label="Test fixture">
+  <rect class="box" x="20" y="30" width="230" height="80" rx="10"/>
+  <text x="35" y="55" font-size="14" font-weight="700">Before each test</text>
+  <text x="35" y="76" font-size="12" class="mu">make a brand-new, empty database</text>
+  <text x="35" y="94" font-size="12" class="mu">start the app pointed at it</text>
+  <path class="ln" d="M255,70 L335,70" marker-end="url(#m)"/>
+  <rect class="box a" x="340" y="30" width="230" height="80" rx="10"/>
+  <text x="355" y="55" font-size="14" font-weight="700">The test</text>
+  <text x="355" y="76" font-size="12" class="mu">e.g. create a link, click it twice,</text>
+  <text x="355" y="94" font-size="12" class="mu">check the count says 2</text>
+  <path class="ln" d="M575,70 L655,70" marker-end="url(#m)"/>
+  <rect class="box" x="660" y="30" width="220" height="80" rx="10"/>
+  <text x="675" y="55" font-size="14" font-weight="700">After</text>
+  <text x="675" y="76" font-size="12" class="mu">throw the database away,</text>
+  <text x="675" y="94" font-size="12" class="mu">so tests never affect each other</text>
+</svg>
+</div>
+<div class="sec">
+<div>
+<div class="node"><span class="f">tests/conftest.py</span><div class="say">The "before each test" part, shared by all 43.</div><code>@pytest.fixture
+def client(tmp_path, monkeypatch) -> TestClient</code></div>
+<table style="margin-top:12px">
+  <tr><th>File</th><th>What it proves</th><th>Count</th></tr>
+  <tr><td><code>test_health.py</code></td><td>the pulse works, unknown pages give the standard error</td><td>2</td></tr>
+  <tr><td><code>test_create.py</code></td><td>shortening works, bad addresses are refused with the right message</td><td>8</td></tr>
+  <tr><td><code>test_redirect.py</code></td><td>clicks go to the right place and are counted; reading details is not a click</td><td>5</td></tr>
+  <tr><td><code>test_alias.py</code></td><td>custom names work, bad names are refused, taken names give 409</td><td>12</td></tr>
+  <tr><td><code>test_delete.py</code></td><td>deleted links stop working and their names can be reused</td><td>4</td></tr>
+  <tr><td><code>test_expiry.py</code></td><td>expired links give 410 and are not counted; old databases get upgraded</td><td>8</td></tr>
+  <tr><td><code>test_logging.py</code></td><td>every request writes one JSON line with the right fields</td><td>4</td></tr>
+</table>
+<p class="cap">The same 43 tests run twice in CI: once against SQLite and once against a real Postgres, so both ledgers are proven.</p>
+</div>
+<div class="tree" data-hl="tests/conftest.py,tests/test_health.py,tests/test_create.py,tests/test_redirect.py,tests/test_alias.py,tests/test_delete.py,tests/test_expiry.py,tests/test_logging.py"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2>11. From my laptop to the internet</h2>
+<p>Saving code to GitHub sets two things in motion at once: the robot runs the tests, and DigitalOcean builds and starts a fresh copy of the service.</p>
+<div class="fig">
+<svg viewBox="0 0 900 300" role="img" aria-label="Delivery pipeline">
+  <rect class="box" x="20" y="120" width="130" height="60" rx="10"/>
+  <text x="35" y="145" font-size="14" font-weight="700">git push</text>
+  <text x="35" y="165" font-size="12" class="mu">from the laptop</text>
+  <path class="ln" d="M155,150 L225,150" marker-end="url(#m)"/>
+  <rect class="box" x="230" y="120" width="130" height="60" rx="10"/>
+  <text x="245" y="145" font-size="14" font-weight="700">GitHub</text>
+  <text x="245" y="165" font-size="12" class="mu">holds the code</text>
+  <!-- CI branch -->
+  <path class="ln" d="M365,140 C420,140 420,60 470,60" marker-end="url(#m)"/>
+  <rect class="box" x="475" y="25" width="405" height="70" rx="10"/>
+  <text x="490" y="48" font-size="14" font-weight="700">GitHub Actions <tspan class="mu" font-weight="400">(the test robot)</tspan></text>
+  <text x="490" y="68" font-size="12" class="mu">run 43 tests on SQLite · run them again on Postgres · check the container builds</text>
+  <text x="490" y="86" font-size="12" class="mono ac">.github/workflows/ci.yml</text>
+  <!-- deploy branch -->
+  <path class="ln" d="M365,160 C420,160 420,215 470,215" marker-end="url(#m)"/>
+  <rect class="box a" x="475" y="135" width="405" height="150" rx="10"/>
+  <text x="490" y="158" font-size="14" font-weight="700">DigitalOcean App Platform</text>
+  <text x="490" y="180" font-size="12" class="mu">1. builds a container: a sealed box with Python, the code, and nothing else</text>
+  <text x="490" y="198" font-size="12" class="mono ac">   Dockerfile</text>
+  <text x="490" y="218" font-size="12" class="mu">2. starts it, hands it the knobs from section 9</text>
+  <text x="490" y="236" font-size="12" class="mono ac">   .do/app.yaml</text>
+  <text x="490" y="256" font-size="12" class="mu">3. asks /healthz until it answers, then moves traffic over</text>
+  <text x="490" y="274" font-size="12" class="mu">4. if it never answers: keep the old one running (this saved us once today)</text>
+</svg>
+</div>
+<div class="sec">
+<div class="why" style="margin-top:0"><b>Why is this "production-ready thinking"?</b> Nobody copies files to a server by hand. The path from a change to a running service is automatic, the same every time, and guarded by tests and a health check. A bad change cannot take the site down; it just fails to deploy.</div>
+<div class="tree" data-hl=".github/workflows/ci.yml,.do/app.yaml,Dockerfile,requirements.txt"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2>12. Words used above</h2>
+<dl class="gl">
+  <dt>Container</dt><dd>A sealed box holding the program and everything it needs. Runs the same anywhere.</dd>
+  <dt>Endpoint / route</dt><dd>One entry on the API menu: a verb plus an address, like <code>GET /healthz</code>.</dd>
+  <dt>JSON</dt><dd>The text format for the data in requests and replies. Curly braces, quoted names, values.</dd>
+  <dt>Redirect</dt><dd>A reply that says "go to this other address instead." Browsers follow it automatically.</dd>
+  <dt>Primary key</dt><dd>A column the database keeps unique. Here it is <code>code</code>.</dd>
+  <dt>Environment variable</dt><dd>A named setting handed to the program at startup by whatever runs it.</dd>
+  <dt>CI</dt><dd>Continuous integration: tests that run automatically on every change.</dd>
+  <dt>Health check</dt><dd>A tiny request the platform sends repeatedly to see if the service is alive.</dd>
+  <dt>Rollback</dt><dd>Keeping the previous version running because the new one failed to start.</dd>
+</dl>
+
+<script>
+  const FILES = [
+    "app/", "app/main.py", "app/models.py", "app/codes.py", "app/links.py", "app/storage.py",
+    "app/storage_postgres.py", "app/config.py", "app/observability.py",
+    "tests/", "tests/conftest.py", "tests/test_health.py", "tests/test_create.py", "tests/test_redirect.py",
+    "tests/test_alias.py", "tests/test_delete.py", "tests/test_expiry.py", "tests/test_logging.py",
+    ".github/workflows/ci.yml", ".do/app.yaml", "Dockerfile", "requirements.txt", "README.md", "spec.md",
+  ];
+  document.querySelectorAll(".tree[data-hl]").forEach(el => {
+    const hl = new Set(el.dataset.hl.split(",").map(s => s.trim()));
+    const lines = ["url-shortener/"];
+    for (const f of FILES) {
+      const isDir = f.endsWith("/");
+      const nested = !isDir && (f.startsWith("app/") || f.startsWith("tests/"));
+      const shown = isDir ? f : (nested ? f.split("/").pop() : f);
+      const prefix = nested ? "│   ├── " : "├── ";
+      const cls = hl.has(f) ? "hl" : (isDir ? "" : "dim");
+      lines.push(prefix + (cls ? `<span class="${cls}">${shown}</span>` : shown));
+    }
+    el.innerHTML = '<div class="t">WHERE THIS LIVES</div><pre>' + lines.join("\n") + "</pre>";
+  });
+</script>
+</main>
+</body>
+</html>
