@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 from fastapi import HTTPException
 
-from app.codes import generate_code
+from app.codes import RESERVED, generate_code
 from app.models import LinkResponse
 from app.storage import CodeTaken, Link, Storage
 
@@ -22,13 +22,22 @@ def to_response(link: Link, base_url: str) -> LinkResponse:
     )
 
 
-def create_link(storage: Storage, base_url: str, long_url: str) -> Link:
+def create_link(storage: Storage, base_url: str, long_url: str, alias: str | None = None) -> Link:
     if urlparse(long_url).netloc == urlparse(base_url).netloc:
         raise HTTPException(422, "long_url: must not point at this service")
 
-    for _ in range(GENERATE_ATTEMPTS):
+    if alias is not None:
         try:
-            return storage.insert(generate_code(), long_url, custom=False)
+            return storage.insert(alias, long_url, custom=True)
+        except CodeTaken:
+            raise HTTPException(409, "alias: already taken")
+
+    for _ in range(GENERATE_ATTEMPTS):
+        code = generate_code()
+        if code in RESERVED:
+            continue
+        try:
+            return storage.insert(code, long_url, custom=False)
         except CodeTaken:
             continue
     raise HTTPException(500, "could not generate a unique code, try again")
