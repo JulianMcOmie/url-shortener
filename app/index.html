@@ -46,7 +46,6 @@
   .short a:hover { text-decoration: underline; }
   .to { color: var(--gray); font-size: 14px; word-break: break-all; margin: 0 0 16px; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .meta { color: var(--gray); font-size: 14px; margin-left: auto; }
   .again { margin-top: 18px; }
   #history { display: none; margin-top: 40px; }
   #history h2 { font-size: 14px; font-weight: 600; color: var(--gray); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; }
@@ -87,7 +86,6 @@
       <p class="to" id="longUrl"></p>
       <div class="row">
         <button id="copy" type="button">Copy</button>
-        <span class="meta" id="meta"></span>
       </div>
     </div>
     <div class="again"><button type="button" class="link" id="again">Shorten another</button></div>
@@ -183,7 +181,6 @@
     $("shortLink").textContent = link.short_url.replace(/^https?:\/\//, "");
     $("shortLink").href = link.short_url;
     $("longUrl").textContent = "→ " + link.long_url;
-    $("meta").textContent = link.custom ? "custom name" : "generated name";
     $("create").style.display = "none";
     $("result").style.display = "block";
     $("copy").textContent = "Copy";
