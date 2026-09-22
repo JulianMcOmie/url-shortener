@@ -130,13 +130,16 @@ in the same JSON shape as every other error.
 flowchart LR
     Dev[git push main] --> GH[GitHub]
     GH --> CI["GitHub Actions<br/>pytest on SQLite<br/>pytest on Postgres<br/>docker build"]
-    GH -- "deploy_on_push" --> AP["App Platform<br/>builds Dockerfile"]
+    CI -- "all green" --> DEP["deploy job<br/>doctl apps create-deployment"]
+    DEP --> AP["App Platform<br/>builds Dockerfile"]
     AP -- "GET /healthz" --> Live[Live containers]
     Live --> PG[(Managed Postgres)]
 ```
 
-CI and deploy run in parallel from the same push. App Platform only routes traffic to
-a new container once `/healthz` answers.
+A push to `main` deploys only if both test jobs and the image build succeed; the
+`deploy` job in the workflow triggers App Platform with `doctl`. App Platform then
+only routes traffic to a new container once `/healthz` answers. A failing test stops
+the deploy; a container that fails its health check is rolled back.
 
 ## Design decisions
 
@@ -222,7 +225,8 @@ database's connection string, and sets the health check to `/healthz`.
 
     doctl apps create --spec .do/app.yaml
 
-After that, every push to `main` redeploys. Without a database attached, the app
+After that, every push to `main` that passes CI redeploys (the workflow needs a
+`DIGITALOCEAN_ACCESS_TOKEN` secret with the `app` scope). Without a database attached, the app
 falls back to SQLite on the container's ephemeral disk, which is fine for a single
 container but not for more.
 

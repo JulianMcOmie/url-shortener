@@ -42,3 +42,16 @@ jobs:
       - run: pytest -q
         env:
           TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/links
+
+  deploy:
+    # Only main, and only after both test jobs pass. App Platform's own
+    # deploy-on-push is off, so this is the only path to production.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test, test-postgres]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: Deploy to App Platform
+        run: doctl apps create-deployment 6bd4f0ba-19f3-4296-80a6-d5416ab7a3e0 --wait

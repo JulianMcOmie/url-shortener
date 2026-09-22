@@ -424,7 +424,7 @@ def client(tmp_path, monkeypatch) -> TestClient</code></div>
 
 <!-- ================================================================ -->
 <h2>11. From my laptop to the internet</h2>
-<p>Saving code to GitHub sets two things in motion at once: the robot runs the tests, and DigitalOcean builds and starts a fresh copy of the service.</p>
+<p>Saving code to GitHub starts the robot. If every test passes, the robot tells DigitalOcean to build and start a fresh copy of the service. If a test fails, nothing deploys.</p>
 <div class="fig">
 <svg viewBox="0 0 900 300" role="img" aria-label="Delivery pipeline">
   <rect class="box" x="20" y="120" width="130" height="60" rx="10"/>
@@ -453,7 +453,7 @@ def client(tmp_path, monkeypatch) -> TestClient</code></div>
 </svg>
 </div>
 <div class="sec">
-<div class="why" style="margin-top:0"><b>Why is this "production-ready thinking"?</b> Nobody copies files to a server by hand. The path from a change to a running service is automatic, the same every time, and guarded by tests and a health check. A bad change cannot take the site down; it just fails to deploy.</div>
+<div class="why" style="margin-top:0"><b>Why is this "production-ready thinking"?</b> Nobody copies files to a server by hand. The path from a change to a running service is automatic, the same every time, and guarded twice: tests before anything is built, and a health check before any traffic arrives. A bad change cannot take the site down; it just fails to deploy.</div>
 <div class="tree" data-hl=".github/workflows/ci.yml,.do/app.yaml,Dockerfile,requirements.txt"></div>
 </div>
 
